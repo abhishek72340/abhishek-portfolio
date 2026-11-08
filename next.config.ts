@@ -12,6 +12,10 @@ const nextConfig: NextConfig = {
             key: "X-Frame-Options",
             value: "SAMEORIGIN",
           },
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors 'self' https://*.vercel.app https://*.vercel.sh",
+          },
         ],
       },
     ];
