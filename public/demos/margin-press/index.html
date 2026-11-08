@@ -307,12 +307,15 @@
       text-align: center;
       pointer-events: none;
       user-select: none;
-      --fs: min(44vh, 21.5vw);
-      top: calc(46.5vh - var(--fs)*.84);
+      --fs: min(27vh, 13vw);
+      top: calc(48vh - var(--fs)*.84);
       font: italic 400 var(--fs)/1 var(--display);
       letter-spacing: -.035em;
       margin: 0;
-      color: var(--bone)
+      color: rgba(185, 185, 185, 0.28);
+      filter: blur(1.4px);
+      text-shadow: 0 0 45px rgba(185, 185, 185, 0.12);
+      transition: opacity .8s ease, filter .8s ease;
     }
 
     .shelves {
@@ -340,21 +343,10 @@
       cursor: pointer
     }
 
-    /* ---------- catalogue open-book hover preview card ---------- */
-    .tag {
-      position: fixed;
-      z-index: 40;
-      left: 0;
-      top: 0;
-      pointer-events: none;
-      will-change: transform;
-      opacity: 0;
-      transition: opacity .25s var(--ease);
-    }
-
-    .tag.on {
-      opacity: 1;
-      pointer-events: auto
+    /* ---------- catalogue open-book hover preview card (hidden per user request) ---------- */
+    .tag,
+    #tag {
+      display: none !important;
     }
 
     .tag-in {
@@ -1320,8 +1312,8 @@
       }
 
       .word {
-        --fs: 30vw;
-        top: calc(14vh + env(safe-area-inset-top, 0px))
+        --fs: 19vw;
+        top: calc(18vh + env(safe-area-inset-top, 0px))
       }
 
       .shelves {

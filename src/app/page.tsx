@@ -86,7 +86,6 @@ export default function HomePage() {
           isScrolling = true;
         }
 
-        // Apply delta with smooth scaling
         targetY += e.data.deltaY;
         const maxScroll = Math.max(
           0,

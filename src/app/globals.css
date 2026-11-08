@@ -85,6 +85,34 @@ html, body {
   font-family: var(--mono);
 }
 
+/* Watermark wordmark behind 3D shelf: ethereal, softly blurred, subtly lit & dimmed */
+.word {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  text-align: center;
+  pointer-events: none;
+  user-select: none;
+  --fs: min(27vh, 13vw);
+  top: calc(48vh - var(--fs) * 0.84);
+  font: italic 400 var(--fs) / 1 var(--display);
+  letter-spacing: -0.035em;
+  margin: 0;
+  color: rgba(185, 185, 185, 0.28);
+  filter: blur(1.4px);
+  text-shadow: 0 0 45px rgba(185, 185, 185, 0.12);
+  transition: opacity 0.8s ease, filter 0.8s ease;
+}
+@media (max-width: 768px) {
+  .word {
+    --fs: 19vw;
+    top: calc(18vh + env(safe-area-inset-top, 0px));
+    filter: blur(1px);
+    opacity: 0.35;
+  }
+}
+
 /* Brand mark icon */
 .mark {
   position: relative;

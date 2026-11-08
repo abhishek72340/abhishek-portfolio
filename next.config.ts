@@ -1,18 +1,18 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
-  async rewrites() {
+  async headers() {
     return [
       {
-        source: "/demos/margin-press",
-        destination: "/demos/margin-press/index.html",
-      },
-      {
-        source: "/demos/margin-press/",
-        destination: "/demos/margin-press/index.html",
+        source: "/demos/margin-press/:path*",
+        headers: [
+          {
+            key: "X-Frame-Options",
+            value: "SAMEORIGIN",
+          },
+        ],
       },
     ];
   },
