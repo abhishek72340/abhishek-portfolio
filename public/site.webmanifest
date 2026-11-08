@@ -1,0 +1,15 @@
+{
+  "name": "Thinking Gods",
+  "short_name": "TG",
+  "icons": [
+    {
+      "src": "/images/favicon.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#07080a",
+  "background_color": "#07080a",
+  "display": "standalone"
+}
+

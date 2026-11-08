@@ -1,0 +1,214 @@
+/* ============================================================
+   Prompt detail pages — long-form tutorial layout.
+   Everything a future CMS would emit lives in .pd-body:
+   headings, paragraphs, notes, copyable prompt boxes, images,
+   image pairs, tables, link lists, site entries.
+   ============================================================ */
+.pd-hero {
+  max-width: var(--maxw); margin: 0 auto;
+  padding: 168px var(--gutter) 40px;
+}
+.pd-hero .crumbs { display: flex; gap: 10px; align-items: center; }
+.pd-hero .crumbs a { color: var(--ink-60); transition: color .25s var(--ease); }
+.pd-hero .crumbs a:hover { color: var(--ink); }
+.pd-hero h1 {
+  font-family: var(--display); font-weight: 400;
+  font-size: clamp(38px, 6.2vw, 96px); letter-spacing: -.05em; line-height: .92;
+  margin: 18px 0 0; max-width: 16ch;
+}
+.pd-hero .lede { margin: 22px 0 0; max-width: 58ch; font-size: clamp(16px,1.25vw,20px); color: var(--ink-60); }
+.pd-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
+.pd-meta .chip { cursor: default; }
+
+.pd-cover { max-width: var(--maxw); margin: 34px auto 0; padding: 0 var(--gutter); }
+.pd-cover .frame { position: relative; overflow: hidden; border-radius: 20px; aspect-ratio: 16/9; background: var(--panel); border: 1px solid var(--hair); }
+.pd-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.pd-body { max-width: var(--maxw); margin: 0 auto; padding: clamp(40px,5vw,72px) var(--gutter) clamp(60px,7vw,110px); }
+.pd-body > * { max-width: 860px; margin-left: auto; margin-right: auto; }   /* centred column below the hero */
+.pd-body > * + * { margin-top: 22px; }
+.pd-body h2 {
+  font-family: var(--display); font-weight: 400;
+  font-size: clamp(26px, 3vw, 42px); letter-spacing: -.035em; line-height: 1.04;
+  margin-top: clamp(48px, 5.5vw, 76px) !important;
+}
+.pd-body h3 {
+  font-family: var(--display); font-weight: 400;
+  font-size: clamp(20px, 2vw, 27px); letter-spacing: -.03em; margin-top: 36px !important;
+}
+.pd-body p { font-size: clamp(16px, 1.2vw, 18.5px); line-height: 1.6; color: rgba(43,43,43,.82); }
+.pd-body p b { color: var(--ink); font-weight: 600; }
+.pd-body code, .pd-body p code { font-family: var(--mono); font-size: .86em; background: rgba(43,43,43,.07); padding: 2px 6px; border-radius: 5px; }
+
+/* callout */
+.pd-note {
+  border-left: 3px solid var(--cursor); background: var(--panel);
+  border-radius: 0 14px 14px 0; padding: 16px 20px;
+  font-size: clamp(15px,1.1vw,17px); color: rgba(43,43,43,.82); line-height: 1.55;
+}
+
+/* ---- the copyable prompt box: the reason these pages exist ---- */
+.pbox {
+  position: relative; border-radius: 16px; overflow: hidden;
+  background: #fff; color: var(--ink);
+  border: 1px solid var(--hair);
+  box-shadow: 0 2px 10px rgba(0,0,0,.05);
+}
+.pbox-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 11px 14px 11px 18px; border-bottom: 1px solid var(--hair);
+}
+.pbox-bar .mono { color: var(--ink-40); }
+.pbox pre {
+  margin: 0; padding: 20px 22px 22px;
+  font-family: var(--sans); font-size: clamp(15px,1.08vw,16.5px); line-height: 1.6;
+  white-space: pre-wrap; word-wrap: break-word; color: rgba(43,43,43,.86);
+  max-height: 520px; overflow: auto;
+}
+.pbox pre.is-code { font-family: var(--mono); font-size: 13.5px; }
+.pbox .copy-btn {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+  min-height: 34px; padding: 0 14px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--hair); background: transparent; color: var(--ink);
+  transition: background .2s var(--ease), color .2s var(--ease), border-color .2s var(--ease);
+}
+.pbox .copy-btn:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.pbox .copy-btn.done { background: var(--cursor); border-color: var(--cursor); color: #fff; }
+
+/* images */
+.pd-img { position: relative; overflow: hidden; border-radius: 16px; background: var(--panel); border: 1px solid var(--hair); }
+.pd-img img { width: 100%; display: block; }
+.pd-img.missing { aspect-ratio: 16/9; display: grid; place-items: center; }
+.pd-img.missing span { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-40); text-align: center; padding: 20px; }
+.pd-cap { margin: 10px 0 0 !important; font-size: 14px !important; color: var(--ink-40) !important; }
+.pd-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 600px) { .pd-pair { grid-template-columns: 1fr; } }
+.pd-video { border-radius: 16px; overflow: hidden; background: var(--ink); aspect-ratio: 16/9; }
+.pd-video video { width: 100%; height: 100%; display: block; }
+
+/* tables */
+.pd-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.pd-table th { text-align: left; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-40); padding: 0 12px 12px 0; border-bottom: 1px solid var(--hair); }
+.pd-table td { padding: 13px 12px 13px 0; border-bottom: 1px solid var(--hair); vertical-align: top; color: rgba(43,43,43,.82); }
+.pd-table td:first-child { color: var(--ink); width: 44%; }
+
+/* site entries (reference lists) */
+.pd-site { padding: 26px 0; border-top: 1px solid var(--hair); }
+.pd-site .n { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; color: var(--ink-40); }
+.pd-site h3 { margin: 8px 0 0 !important; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.pd-site h3 a { font-family: var(--mono); font-size: 12px; letter-spacing: .04em; color: var(--ink-60); border-bottom: 1px solid var(--hair); transition: color .25s var(--ease), border-color .25s var(--ease); }
+.pd-site h3 a:hover { color: var(--ink); border-color: var(--ink); }
+.pd-site .desc { margin-top: 12px !important; }
+.pd-site .take { margin-top: 12px !important; padding-left: 16px; border-left: 2px solid var(--cursor); }
+.pd-site .take b { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-40); display: block; margin-bottom: 4px; font-weight: 400; }
+
+.pd-links { list-style: none; margin: 0; padding: 0; }
+.pd-links li { padding: 16px 0; border-top: 1px solid var(--hair); }
+.pd-links li:last-child { border-bottom: 1px solid var(--hair); }
+.pd-links a { font-family: var(--display); font-size: clamp(18px,1.5vw,22px); letter-spacing: -.02em; display: inline-flex; gap: 8px; align-items: baseline; }
+.pd-links a span { font-size: .7em; color: var(--ink-40); }
+.pd-links p { margin: 6px 0 0 !important; font-size: 15px !important; }
+
+/* CTA row at the end */
+.pd-end { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--gutter) clamp(60px,7vw,110px); }
+.pd-end .box { max-width: 860px; margin-left: auto; margin-right: auto;
+  display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center;
+  border: 1px solid var(--hair); border-radius: 18px; padding: 24px 26px; background: var(--panel);
+}
+@media (max-width: 640px) { .pd-end .box { max-width: 860px; margin-left: auto; margin-right: auto; grid-template-columns: 1fr; } }
+.pd-end h3 { font-family: var(--display); font-weight: 400; font-size: clamp(20px,2vw,27px); letter-spacing: -.03em; margin: 0; }
+.pd-end p { margin: 6px 0 0; color: var(--ink-60); font-size: 15px; }
+.pd-nav { display: flex; justify-content: space-between; gap: 16px; margin-top: 22px; }
+.pd-nav a { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-60); transition: color .25s var(--ease); }
+.pd-nav a:hover { color: var(--ink); }
+
+/* ---- 4. figures: kill the UA default 40px side margins that shoved every
+   image right of the text column ---- */
+.pd-fig { margin: 0; }
+
+/* ---- 5. prev / next as thumbnail cards, ranged with the content ---- */
+.pd-nav { max-width: 860px; margin-left: auto; margin-right: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+@media (max-width: 640px) { .pd-nav { grid-template-columns: 1fr; } }
+.pd-navcard {
+  display: grid; grid-template-columns: 96px 1fr auto; gap: 16px; align-items: center;
+  padding: 12px; border: 1px solid var(--hair); border-radius: 16px; background: #fff;
+  transition: transform .4s var(--ease), box-shadow .4s var(--ease), border-color .3s var(--ease);
+}
+.pd-navcard:hover { transform: translateY(-3px); box-shadow: 0 16px 36px rgba(0,0,0,.09); border-color: rgba(43,43,43,.26); }
+.pd-navthumb { position: relative; display: block; width: 96px; aspect-ratio: 16/10; border-radius: 10px; overflow: hidden; background: var(--panel); }
+.pd-navthumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .6s var(--ease); }
+.pd-navcard:hover .pd-navthumb img { transform: scale(1.06); }
+.pd-navtext { display: grid; gap: 4px; min-width: 0; }
+.pd-navtext .mono { color: var(--ink-40); font-size: 10px; }
+.pd-navtext b { font-family: var(--display); font-weight: 400; font-size: 17px; letter-spacing: -.025em; line-height: 1.15; color: var(--ink); }
+.pd-navarrow { font-size: 18px; color: var(--ink-40); transition: transform .3s var(--ease), color .3s var(--ease); }
+.pd-navcard:hover .pd-navarrow { transform: translateX(3px); color: var(--ink); }
+.pd-navcard:first-child:hover .pd-navarrow { transform: translateX(-3px); }
+
+/* ============================================================
+   One-click template — cover left, copy panel right.
+   Used by pages whose whole payload is a single prompt.
+   ============================================================ */
+.pd-showcase {
+  max-width: var(--maxw); margin: 0 auto;
+  padding: 140px var(--gutter) 10px;
+  display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, .85fr);
+  gap: clamp(16px, 1.8vw, 28px); align-items: stretch;
+}
+.pd-showcase .sc-shot {
+  position: relative; overflow: hidden; border-radius: 20px;
+  /* align-self:start — with stretch, the row height would drive the width
+     through aspect-ratio and the shot would overflow its column */
+  align-self: start; width: 100%;
+  aspect-ratio: 16 / 10; background: var(--panel); border: 1px solid var(--hair);
+}
+.pd-showcase .sc-shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pd-showcase .sc-shot video, .pd-navthumb video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+@media (prefers-reduced-motion: reduce) { .pd-showcase .sc-shot video, .pd-navthumb video { display: none; } }
+
+.sc-panel {
+  display: flex; flex-direction: column; align-items: flex-start;
+  background: var(--panel); border: 1px solid var(--hair); border-radius: 20px;
+  padding: clamp(22px, 2.2vw, 34px);
+}
+.sc-panel .crumbs { display: flex; gap: 10px; align-items: center; margin: 0; }
+.sc-panel .crumbs a { color: var(--ink-60); transition: color .25s var(--ease); }
+.sc-panel .crumbs a:hover { color: var(--ink); }
+.sc-panel h1 {
+  font-family: var(--display); font-weight: 400;
+  font-size: clamp(30px, 2.9vw, 46px); letter-spacing: -.045em; line-height: .96;
+  margin: 16px 0 0;
+}
+.sc-kind { margin: 10px 0 0; color: var(--ink-40); }
+.sc-lede { margin: 16px 0 22px; color: var(--ink-60); font-size: clamp(14.5px, 1.05vw, 16.5px); }
+.sc-copy { margin-top: auto; padding-top: 14px; padding-bottom: 14px; align-self: stretch; justify-content: center; }
+.sc-copy.done { background: var(--ink) !important; }
+.sc-panel .sc-links { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 14px; }
+.sc-link {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-60); border-bottom: 1px solid var(--hair); padding-bottom: 2px;
+  transition: color .25s var(--ease), border-color .25s var(--ease);
+}
+.sc-link:hover { color: var(--ink); border-color: var(--ink); }
+.sc-panel .pd-meta { margin-top: 18px; }
+
+@media (max-width: 900px) {
+  .pd-showcase { grid-template-columns: 1fr; padding-top: 104px; }
+  .pd-showcase .sc-shot { aspect-ratio: 16 / 10; }
+  .sc-copy { margin-top: 22px; }
+}
+
+/* motion entries (reference lists with a clip): portrait film left, credit and link right */
+.pd-motion { display: grid; grid-template-columns: minmax(0, 300px) 1fr; gap: clamp(20px,3vw,40px); align-items: center; padding: 30px 0; border-top: 1px solid var(--hair); }
+.pd-motion .pm-clip { aspect-ratio: 3 / 4; border-radius: 12px; overflow: hidden; background: #111; }
+.pd-motion video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pd-motion .n { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; color: var(--ink-40); }
+.pd-motion h3 { margin: 8px 0 0 !important; }
+.pd-motion .pm-by { margin: 6px 0 0 !important; font-size: 15px !important; color: var(--ink-60); }
+.pd-motion .pm-by a { color: var(--ink); border-bottom: 1px solid var(--hair); transition: border-color .25s var(--ease); }
+.pd-motion .pm-by a:hover { border-color: var(--ink); }
+.pd-motion .take { margin: 16px 0 0 !important; padding-left: 16px; border-left: 2px solid var(--cursor); font-size: 15.5px !important; }
+.pd-motion .take b { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-40); display: block; margin-bottom: 4px; font-weight: 400; }
+.pd-motion .pm-orig { margin: 14px 0 0 !important; font-size: 11px !important; letter-spacing: .04em; color: var(--ink-40); }
+.pd-motion .pm-open { margin-top: 20px !important; display: inline-flex; }
+@media (max-width: 640px) { .pd-motion { grid-template-columns: 1fr; } .pd-motion .pm-clip { max-width: 360px; } }

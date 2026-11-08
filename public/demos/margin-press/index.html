@@ -1,0 +1,2626 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Margin Press</title>
+  <meta name="description" content="Margin, an independent press. The autumn list: 32 new titles.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400&family=Instrument+Serif:ital@0;1&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap">
+  <style>
+    body {
+      margin: 0
+    }
+
+    img {
+      max-width: 100%
+    }
+
+    [hidden]:not([hidden=until-found i]) {
+      display: none !important
+    }
+  </style>
+</head>
+
+<body>
+  <style>
+    /* Layout: one fixed screen. Floating nav, a giant italic wordmark with its baseline near 46vh,
+   a mono shelf index under it, a draggable WebGL row of 32 books over both, and a reader layer
+   where a chosen book flies forward and opens as a page-turning book. */
+    :root {
+      --ink: #060606;
+      /* page */
+      --bone: #ece7dd;
+      /* primary text, pill */
+      --ash: #8d887e;
+      /* secondary text */
+      --rule: rgba(236, 231, 221, .13);
+      --glass: rgba(236, 231, 221, .035);
+      --ember: #c9a27a;
+      /* the one accent: catalogue numbers and the floor glow */
+      --tile-bar: #151210;
+      --paper: #f3eee4;
+      /* book interiors */
+      --paper-ink: #1f1b16;
+      --paper-soft: #81786b;
+      --display: "Instrument Serif", "Iowan Old Style", "Times New Roman", serif;
+      --book: "Newsreader", "Iowan Old Style", Georgia, serif;
+      --ui: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      --ease: cubic-bezier(.2, .8, .2, 1);
+      color-scheme: dark;
+    }
+
+    html,
+    body {
+      height: 100%;
+      overflow: hidden
+    }
+
+    body {
+      background: var(--ink);
+      color: var(--bone);
+      font-family: var(--ui);
+      padding-left: max(16px, env(safe-area-inset-left, 0px));
+      padding-right: max(16px, env(safe-area-inset-right, 0px));
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none
+    }
+
+    a:focus-visible,
+    button:focus-visible {
+      outline: 1px solid var(--bone);
+      outline-offset: 4px;
+      border-radius: 6px
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+      background: none;
+      border: 0;
+      cursor: pointer
+    }
+
+    .atmos {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(52% 42% at 74% 92%, rgba(201, 162, 122, .13), transparent 70%),
+        radial-gradient(38% 30% at 18% 26%, rgba(236, 231, 221, .04), transparent 70%);
+    }
+
+    .grain {
+      position: fixed;
+      inset: -50%;
+      z-index: 4;
+      pointer-events: none;
+      opacity: .07;
+      mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    }
+
+    /* the background layers sink, blur and dim while a book is open */
+    .nav,
+    .word,
+    .shelves,
+    .hint {
+      transition: transform 1s var(--ease), filter 1s var(--ease), opacity .9s var(--ease)
+    }
+
+    body.reading .word {
+      transform: translateY(1.5vh) scale(.98);
+      filter: blur(1px);
+      opacity: .8
+    }
+
+    body.reading .shelves {
+      transform: translateY(2vh);
+      filter: blur(0.5px);
+      opacity: .75
+    }
+
+    body.reading .nav {
+      transform: none;
+      filter: none;
+      opacity: 1;
+      pointer-events: auto
+    }
+
+    body.reading .hint {
+      opacity: .7
+    }
+
+    .dim {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .9s var(--ease);
+      background: radial-gradient(70% 60% at 50% 46%, rgba(6, 6, 6, .12), rgba(6, 6, 6, .5))
+    }
+
+    body.reading .dim {
+      opacity: 1
+    }
+
+    /* ---------- nav ---------- */
+    /* When embedded in Next.js iframe, hide duplicate header navigation completely */
+    body.embedded .nav,
+    html.embedded .nav,
+    .embedded #nav {
+      display: none !important;
+    }
+
+    .nav {
+      position: fixed;
+      z-index: 6;
+      left: 23.3vw;
+      right: 23.4vw;
+      top: calc(4.6vh + env(safe-area-inset-top, 0px));
+      height: 4.4vh;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      column-gap: 2vw;
+      font: 500 max(11px, .78vw)/1 var(--ui);
+      letter-spacing: .005em
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: .7vw
+    }
+
+    .mark {
+      position: relative;
+      width: max(22px, 1.9vw);
+      height: max(25px, 2.2vw);
+      border-radius: max(5px, .42vw);
+      background: var(--bone);
+      flex: none
+    }
+
+    .mark::before {
+      content: "";
+      position: absolute;
+      left: 30%;
+      top: 18%;
+      width: 1.5px;
+      height: 64%;
+      background: var(--tile-bar)
+    }
+
+    .mark::after {
+      content: "";
+      position: absolute;
+      left: 44%;
+      right: 18%;
+      top: 30%;
+      height: 1.5px;
+      background: var(--tile-bar);
+      box-shadow: 0 max(4px, .36vw) 0 var(--tile-bar), 0 calc(2*max(4px, .36vw)) 0 var(--tile-bar), 0 calc(3*max(4px, .36vw)) 0 rgba(21, 18, 16, .35)
+    }
+
+    .brand-text {
+      display: flex;
+      flex-direction: column;
+      gap: .18vw
+    }
+
+    .brand-name {
+      font: italic 400 max(19px, 1.6vw)/.85 var(--display);
+      letter-spacing: -.01em
+    }
+
+    .brand-sub {
+      font: 400 max(8px, .56vw)/1 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      color: var(--ash)
+    }
+
+    .links {
+      justify-self: center;
+      display: flex;
+      align-items: center;
+      gap: 2.1vw;
+      padding: .62vw 1.35vw;
+      border: 1px solid var(--rule);
+      border-radius: 999px;
+      background: var(--glass);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px)
+    }
+
+    .links a {
+      display: inline-flex;
+      align-items: center;
+      gap: .3vw;
+      opacity: .82;
+      transition: opacity .2s
+    }
+
+    .links a:hover {
+      opacity: 1
+    }
+
+    .links svg {
+      width: max(8px, .55vw);
+      height: max(8px, .55vw)
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 2vw
+    }
+
+    .signin {
+      opacity: .82;
+      transition: opacity .2s
+    }
+
+    .signin:hover {
+      opacity: 1
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: .45vw;
+      background: var(--bone);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: max(8px, .62vw) max(13px, 1.05vw);
+      transition: transform .25s var(--ease), box-shadow .25s
+    }
+
+    .pill:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 24px -8px rgba(236, 231, 221, .45)
+    }
+
+    .pill svg {
+      width: max(10px, .7vw);
+      height: max(10px, .7vw)
+    }
+
+    /* ---------- wordmark + shelf index ---------- */
+    .word {
+      position: fixed;
+      z-index: 1;
+      left: 0;
+      right: 0;
+      text-align: center;
+      pointer-events: none;
+      user-select: none;
+      --fs: min(44vh, 21.5vw);
+      top: calc(46.5vh - var(--fs)*.84);
+      font: italic 400 var(--fs)/1 var(--display);
+      letter-spacing: -.035em;
+      margin: 0;
+      color: var(--bone)
+    }
+
+    .shelves {
+      display: none !important
+    }
+
+    /* ---------- canvas ---------- */
+    #shelf {
+      position: fixed;
+      inset: 0;
+      z-index: 3;
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+      cursor: grab;
+      outline: none
+    }
+
+    #shelf.grabbing {
+      cursor: grabbing
+    }
+
+    #shelf.over {
+      cursor: pointer
+    }
+
+    /* ---------- catalogue open-book hover preview card ---------- */
+    .tag {
+      position: fixed;
+      z-index: 40;
+      left: 0;
+      top: 0;
+      pointer-events: none;
+      will-change: transform;
+      opacity: 0;
+      transition: opacity .25s var(--ease);
+    }
+
+    .tag.on {
+      opacity: 1;
+      pointer-events: auto
+    }
+
+    .tag-in {
+      transform: translate(-50%, calc(-100% - 22px));
+      cursor: pointer;
+      transition: transform .2s var(--ease);
+      display: block;
+      position: relative;
+    }
+
+    .tag-in:hover {
+      transform: translate(-50%, calc(-100% - 26px)) scale(1.03);
+    }
+
+    .tag-in::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -8px;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-top: 8px solid #c9a27a;
+    }
+
+    .open-book-spread {
+      display: flex;
+      width: min(460px, 92vw);
+      height: 205px;
+      background: #f6f1e7;
+      color: #1c1813;
+      border-radius: 8px;
+      border: 1.5px solid rgba(201, 162, 122, .7);
+      box-shadow:
+        0 30px 70px -15px rgba(0, 0, 0, .95),
+        0 0 25px rgba(201, 162, 122, .2),
+        0 0 0 1px rgba(255, 255, 255, .1),
+        0 4px 15px rgba(0, 0, 0, .35);
+      position: relative;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .open-book-spread::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      box-shadow: inset 0 0 20px rgba(92, 68, 38, .12);
+    }
+
+    .ob-gutter {
+      width: 16px;
+      background: linear-gradient(to right, rgba(0, 0, 0, .22), rgba(0, 0, 0, .03) 40%, rgba(0, 0, 0, .03) 60%, rgba(0, 0, 0, .22));
+      position: relative;
+      flex: none;
+      box-shadow: inset 0 0 4px rgba(0, 0, 0, .25);
+    }
+
+    .ob-gutter::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 1px;
+      background: rgba(31, 27, 22, .28);
+    }
+
+    .ob-page {
+      flex: 1;
+      padding: 13px 15px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ob-left {
+      background: linear-gradient(to left, rgba(70, 48, 24, .07), transparent 25%);
+      border-right: 1px solid rgba(31, 27, 22, .08);
+    }
+
+    .ob-right {
+      background: linear-gradient(to right, rgba(70, 48, 24, .07), transparent 25%);
+    }
+
+    .ob-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font: 500 9px/1 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: #7e7465;
+      border-bottom: 1px solid rgba(31, 27, 22, .12);
+      padding-bottom: 5px;
+      margin-bottom: 5px;
+    }
+
+    .ob-no {
+      color: var(--ember);
+      font-weight: 600;
+    }
+
+    .ob-chip {
+      background: rgba(31, 27, 22, .08);
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 8px;
+      color: #1c1813;
+    }
+
+    .ob-title {
+      margin: 0;
+      font: italic 400 17px/1.15 var(--display);
+      letter-spacing: -.01em;
+      color: #1c1813;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .ob-author {
+      font: 500 10px/1.2 var(--mono);
+      color: #7e7465;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-top: 2px;
+    }
+
+    .ob-desc {
+      margin: 5px 0 0;
+      font: 400 11px/1.38 var(--book);
+      color: #4a4237;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .ob-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font: 400 9px/1 var(--mono);
+      color: #8d8373;
+      border-top: 1px solid rgba(31, 27, 22, .1);
+      padding-top: 4px;
+      margin-top: auto;
+    }
+
+    .ob-mark {
+      width: 9px;
+      height: 11px;
+      background: #1c1813;
+      border-radius: 2px;
+      opacity: .6;
+    }
+
+    .ob-badge {
+      font: 600 9px/1 var(--mono);
+      color: #1c1813;
+    }
+
+    .ob-folio {
+      font: 400 9px/1 var(--mono);
+      color: #8d8373;
+    }
+
+    .ob-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+      margin-top: 4px;
+    }
+
+    .ob-stat-item {
+      padding: 4px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, .6);
+      border: 1px solid rgba(31, 27, 22, .12);
+    }
+
+    .ob-stat-num {
+      display: block;
+      font: 600 10px/1 var(--mono);
+      color: #1c1813;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ob-stat-lbl {
+      display: block;
+      font: 400 8px/1.2 var(--book);
+      color: #7e7465;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ob-metrics {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px 6px;
+      font: 500 8.5px/1 var(--mono);
+      color: #594f42;
+      margin-top: 5px;
+    }
+
+    .ob-cta {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: #1c1813;
+      color: #f5efe4;
+      font: 500 9px/1 var(--ui);
+      letter-spacing: .02em;
+      transition: background .2s, transform .2s;
+    }
+
+    .ob-cta:hover {
+      background: #000;
+      transform: translateY(-1px);
+    }
+
+    @media (max-width:640px) {
+      .open-book-spread {
+        width: calc(100vw - 32px);
+        height: 185px;
+      }
+
+      .ob-title {
+        font-size: 15px
+      }
+
+      .ob-desc {
+        font-size: 10px
+      }
+    }
+
+    .hint {
+      position: fixed;
+      z-index: 5;
+      left: calc(max(16px, 4vw) + env(safe-area-inset-left, 0px));
+      bottom: calc(max(16px, 4.5vh) + env(safe-area-inset-bottom, 0px));
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: .8em;
+      pointer-events: none;
+      font: 400 max(9px, .6vw)/1 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: .16em;
+      color: var(--ash)
+    }
+
+    .hint::before {
+      content: "";
+      width: max(18px, 1.6vw);
+      height: 1px;
+      background: var(--rule)
+    }
+
+    /* ---------- reader ---------- */
+    .reader {
+      position: fixed;
+      inset: 0;
+      z-index: 8;
+      visibility: hidden
+    }
+
+    .reader.on {
+      visibility: visible
+    }
+
+    .r-chrome {
+      opacity: 0;
+      transition: opacity .45s ease
+    }
+
+    .reader.chrome .r-chrome {
+      opacity: 1;
+      transition-delay: .15s
+    }
+
+    .r-head {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(4.6vh + env(safe-area-inset-top, 0px));
+      display: flex;
+      justify-content: center;
+      align-items: baseline;
+      gap: max(10px, .8vw);
+      padding-inline: max(70px, 8vw);
+      white-space: nowrap;
+      pointer-events: none
+    }
+
+    .r-head .ro-title {
+      font-size: max(19px, 1.5vw)
+    }
+
+    .r-close {
+      position: absolute;
+      top: calc(4.6vh - 6px + env(safe-area-inset-top, 0px));
+      right: calc(max(16px, 3.2vw) + env(safe-area-inset-right, 0px));
+      display: inline-flex;
+      align-items: center;
+      gap: .6em;
+      padding: 9px 14px;
+      border: 1px solid var(--rule);
+      border-radius: 999px;
+      background: var(--glass);
+      font: 400 max(10px, .62vw)/1 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      transition: background .2s, border-color .2s
+    }
+
+    .r-close:hover {
+      background: rgba(236, 231, 221, .08);
+      border-color: rgba(236, 231, 221, .3)
+    }
+
+    .r-close svg {
+      width: 10px;
+      height: 10px
+    }
+
+    .r-stage {
+      position: absolute;
+      left: 50%;
+      top: 48%;
+      transform: translate(-50%, -50%)
+    }
+
+    .r-shift {
+      position: relative;
+      transition: transform .9s cubic-bezier(.45, .05, .25, 1)
+    }
+
+    .r-book {
+      opacity: 0;
+      filter: drop-shadow(0 40px 60px rgba(0, 0, 0, .55))
+    }
+
+    .reader.book-on .r-book {
+      opacity: 1
+    }
+
+    .r-ctrl {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: calc(max(18px, 4.2vh) + env(safe-area-inset-bottom, 0px));
+      display: flex;
+      align-items: center;
+      gap: 18px
+    }
+
+    .r-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 1px solid var(--rule);
+      background: var(--glass);
+      display: grid;
+      place-items: center;
+      transition: background .2s, border-color .2s, opacity .2s
+    }
+
+    .r-btn:hover {
+      background: rgba(236, 231, 221, .08);
+      border-color: rgba(236, 231, 221, .3)
+    }
+
+    .r-btn:disabled {
+      opacity: .3;
+      cursor: default
+    }
+
+    .r-btn svg {
+      width: 14px;
+      height: 14px
+    }
+
+    .r-count {
+      min-width: 13ch;
+      white-space: nowrap;
+      text-align: center;
+      font: 400 max(10px, .62vw)/1 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      color: var(--ash);
+      font-variant-numeric: tabular-nums
+    }
+
+    /* ---------- book pages (sized from --pw, the page width) ---------- */
+    .pg {
+      overflow: hidden;
+      background: var(--paper);
+      color: var(--paper-ink)
+    }
+
+    .pg .in {
+      position: absolute;
+      inset: 0
+    }
+
+    .paper.left .in {
+      background: linear-gradient(to left, rgba(70, 48, 24, .17), rgba(70, 48, 24, .05) 4%, rgba(70, 48, 24, 0) 10%)
+    }
+
+    .paper.right .in {
+      background: linear-gradient(to right, rgba(70, 48, 24, .17), rgba(70, 48, 24, .05) 4%, rgba(70, 48, 24, 0) 10%)
+    }
+
+    .cv {
+      position: absolute;
+      inset: 0;
+      background-repeat: no-repeat
+    }
+
+    .cv::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to right, rgba(0, 0, 0, .32), rgba(0, 0, 0, 0) 2.6%, rgba(255, 255, 255, .09) 3.4%, rgba(255, 255, 255, 0) 6%),
+        linear-gradient(115deg, rgba(255, 255, 255, 0) 38%, rgba(255, 255, 255, .07) 47%, rgba(255, 255, 255, 0) 58%)
+    }
+
+    .pg-end {
+      background: #222
+    }
+
+    .pg-end .in {
+      background-color: var(--end);
+      background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, .08) 0 1px, transparent 1px 11px), repeating-linear-gradient(-45deg, rgba(0, 0, 0, .08) 0 1px, transparent 1px 11px)
+    }
+
+    .pg-end.left .in::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to left, rgba(0, 0, 0, .3), rgba(0, 0, 0, 0) 8%)
+    }
+
+    .pg-end.right .in::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to right, rgba(0, 0, 0, .3), rgba(0, 0, 0, 0) 8%)
+    }
+
+    .exlib {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: calc(var(--pw)*.46);
+      padding: calc(var(--pw)*.05) calc(var(--pw)*.04);
+      background: var(--paper);
+      color: var(--paper-ink);
+      text-align: center;
+      box-shadow: 0 2px 0 rgba(0, 0, 0, .12);
+      outline: 1px solid rgba(31, 27, 22, .25);
+      outline-offset: calc(var(--pw)*-.018)
+    }
+
+    .exlib small {
+      display: block;
+      font: 400 calc(var(--pw)*.022)/1 var(--mono);
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--paper-soft)
+    }
+
+    .exlib b {
+      display: block;
+      font: italic 400 calc(var(--pw)*.075)/1 var(--display);
+      margin: .25em 0 .35em
+    }
+
+    .exlib i {
+      display: block;
+      height: 1px;
+      background: rgba(31, 27, 22, .35);
+      margin: calc(var(--pw)*.05) calc(var(--pw)*.02) 0
+    }
+
+    .half {
+      position: absolute;
+      left: 12%;
+      right: 12%;
+      top: 33%;
+      text-align: center;
+      font: italic 400 calc(var(--pw)*.058)/1.15 var(--display);
+      text-wrap: balance
+    }
+
+    .label {
+      font: 400 calc(var(--pw)*.022)/1 var(--mono);
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--paper-soft)
+    }
+
+    .also {
+      position: absolute;
+      left: 14%;
+      right: 14%;
+      top: 22%
+    }
+
+    .also ul {
+      list-style: none;
+      margin: calc(var(--pw)*.06) 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: calc(var(--pw)*.038)
+    }
+
+    .also em {
+      display: block;
+      font: italic 400 calc(var(--pw)*.048)/1.1 var(--display)
+    }
+
+    .also span {
+      font: 400 calc(var(--pw)*.026)/1.3 var(--book);
+      color: var(--paper-soft)
+    }
+
+    .tp {
+      position: absolute;
+      inset: 0;
+      text-align: center
+    }
+
+    .tp h2 {
+      position: absolute;
+      left: 10%;
+      right: 10%;
+      top: 22%;
+      margin: 0;
+      font: italic 400 calc(var(--pw)*.11)/1 var(--display);
+      letter-spacing: -.01em;
+      text-wrap: balance
+    }
+
+    .tp .by {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 58%;
+      font: 400 calc(var(--pw)*.03)/1 var(--mono);
+      letter-spacing: .24em;
+      text-transform: uppercase
+    }
+
+    .tp .imprint {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 11%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: calc(var(--pw)*.02);
+      font: italic 400 calc(var(--pw)*.04)/1 var(--display)
+    }
+
+    .tp .imprint .mark {
+      width: calc(var(--pw)*.06);
+      height: calc(var(--pw)*.07);
+      border-radius: calc(var(--pw)*.012);
+      background: var(--paper-ink)
+    }
+
+    .tp .imprint .mark::before,
+    .tp .imprint .mark::after {
+      background: var(--paper)
+    }
+
+    .tp .imprint .mark::after {
+      box-shadow: 0 calc(var(--pw)*.011) 0 var(--paper), 0 calc(var(--pw)*.022) 0 var(--paper), 0 calc(var(--pw)*.033) 0 rgba(243, 238, 228, .35)
+    }
+
+    .cr {
+      position: absolute;
+      left: 14%;
+      right: 16%;
+      bottom: 12%;
+      font: 400 calc(var(--pw)*.025)/1.6 var(--book);
+      color: var(--paper-soft)
+    }
+
+    .cr p {
+      margin: 0 0 .9em
+    }
+
+    .cr .label {
+      display: block;
+      margin-bottom: 1.4em
+    }
+
+    .epi {
+      position: absolute;
+      left: 18%;
+      right: 16%;
+      top: 30%;
+      margin: 0
+    }
+
+    .epi blockquote {
+      margin: 0;
+      font: italic 400 calc(var(--pw)*.042)/1.45 var(--book);
+      text-wrap: balance
+    }
+
+    .epi figcaption {
+      margin-top: 1.4em;
+      font: 400 calc(var(--pw)*.02)/1 var(--mono);
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--paper-soft)
+    }
+
+    .toc {
+      position: absolute;
+      left: 14%;
+      right: 14%;
+      top: 20%
+    }
+
+    .toc ol {
+      list-style: none;
+      margin: calc(var(--pw)*.07) 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: calc(var(--pw)*.03);
+      font: 400 calc(var(--pw)*.032)/1.2 var(--book)
+    }
+
+    .toc li {
+      display: flex;
+      align-items: baseline;
+      gap: .5em
+    }
+
+    .toc .n {
+      font: 400 calc(var(--pw)*.022)/1 var(--mono);
+      letter-spacing: .08em;
+      color: var(--paper-soft);
+      width: 2.4em;
+      flex: none
+    }
+
+    .toc .d {
+      flex: 1;
+      border-bottom: 1px dotted rgba(31, 27, 22, .35);
+      transform: translateY(-.25em)
+    }
+
+    .toc .p {
+      font-variant-numeric: tabular-nums;
+      color: var(--paper-soft)
+    }
+
+    .ch {
+      position: absolute;
+      left: 14%;
+      right: 14%;
+      top: 16%;
+      text-align: center
+    }
+
+    .ch .label {
+      display: block
+    }
+
+    .ch h3 {
+      margin: .5em 0 0;
+      font: italic 400 calc(var(--pw)*.075)/1.05 var(--display);
+      text-wrap: balance
+    }
+
+    .ch::after {
+      content: "";
+      display: block;
+      width: calc(var(--pw)*.08);
+      height: 1px;
+      background: rgba(31, 27, 22, .4);
+      margin: calc(var(--pw)*.05) auto 0
+    }
+
+    .rh {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(var(--pw)*.07);
+      text-align: center;
+      font: 400 calc(var(--pw)*.019)/1 var(--mono);
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--paper-soft)
+    }
+
+    .folio {
+      position: absolute;
+      bottom: calc(var(--pw)*.07);
+      font: 400 calc(var(--pw)*.026)/1 var(--book);
+      color: var(--paper-soft);
+      font-variant-numeric: tabular-nums
+    }
+
+    .left .folio {
+      left: 13%
+    }
+
+    .right .folio {
+      right: 13%
+    }
+
+    .body {
+      position: absolute;
+      top: calc(var(--pw)*.15);
+      bottom: calc(var(--pw)*.16);
+      overflow: hidden;
+      font: 400 max(9.5px, calc(var(--pw)*.034))/1.5 var(--book);
+      text-align: justify;
+      hyphens: auto;
+      -webkit-hyphens: auto;
+      font-optical-sizing: auto
+    }
+
+    .left .body {
+      left: 12%;
+      right: 14%
+    }
+
+    .right .body {
+      left: 14%;
+      right: 12%
+    }
+
+    .opener .body {
+      top: calc(var(--pw)*.58)
+    }
+
+    .body p {
+      margin: 0;
+      text-indent: 1.4em
+    }
+
+    .body p.first,
+    .body p.cont {
+      text-indent: 0
+    }
+
+    .body p.first {
+      display: flow-root
+    }
+
+    .body p.first::first-letter {
+      float: left;
+      font: 400 calc(var(--pw)*.13)/.78 var(--display);
+      padding: .06em .07em 0 0
+    }
+
+    .eop {
+      position: absolute;
+      left: 14%;
+      right: 14%;
+      top: 50%;
+      transform: translateY(-50%);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: calc(var(--pw)*.035)
+    }
+
+    .eop .orn {
+      font: 400 calc(var(--pw)*.05)/1 var(--book);
+      letter-spacing: .4em;
+      color: var(--paper-soft)
+    }
+
+    .eop h4 {
+      margin: 0;
+      font: italic 400 calc(var(--pw)*.07)/1.05 var(--display);
+      text-wrap: balance
+    }
+
+    .eop p {
+      margin: 0;
+      font: 400 calc(var(--pw)*.028)/1.5 var(--book);
+      color: var(--paper-soft)
+    }
+
+    .eop .buy {
+      margin-top: calc(var(--pw)*.02);
+      display: inline-flex;
+      align-items: center;
+      gap: .5em;
+      padding: .85em 1.4em;
+      border-radius: 999px;
+      background: var(--paper-ink);
+      color: var(--paper);
+      font: 500 calc(var(--pw)*.026)/1 var(--ui)
+    }
+
+    .pg-back {
+      background: #222
+    }
+
+    .pg-back .in {
+      background: var(--bk);
+      color: var(--bk-ink)
+    }
+
+    .pg-back .in::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to left, rgba(0, 0, 0, .3), rgba(0, 0, 0, 0) 2.6%, rgba(255, 255, 255, .08) 3.4%, rgba(255, 255, 255, 0) 6%)
+    }
+
+    .bk-q {
+      position: absolute;
+      left: 14%;
+      right: 14%;
+      top: 17%;
+      margin: 0;
+      font: italic 400 calc(var(--pw)*.055)/1.25 var(--display);
+      text-wrap: balance
+    }
+
+    .bk-a {
+      position: absolute;
+      left: 14%;
+      right: 14%;
+      top: 56%;
+      font: 400 calc(var(--pw)*.024)/1.6 var(--book);
+      opacity: .8
+    }
+
+    .bk-foot {
+      position: absolute;
+      left: 14%;
+      right: 12%;
+      bottom: 9%;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end
+    }
+
+    .bk-foot .lbl {
+      font: 400 calc(var(--pw)*.022)/1.5 var(--mono);
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      opacity: .8
+    }
+
+    .bar {
+      width: calc(var(--pw)*.3);
+      height: calc(var(--pw)*.16);
+      background: #fff;
+      padding: calc(var(--pw)*.018);
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 3px
+    }
+
+    .bar i {
+      flex: 1;
+      display: block
+    }
+
+    .bar small {
+      font: 400 calc(var(--pw)*.016)/1 var(--mono);
+      color: #111;
+      letter-spacing: .1em;
+      text-align: center
+    }
+
+    .meas {
+      position: fixed;
+      left: -10000px;
+      top: 0;
+      visibility: hidden;
+      pointer-events: none
+    }
+
+    .meas .pg {
+      position: relative
+    }
+
+    /* Portfolio book typography helpers */
+    .port-chip {
+      display: inline-block;
+      padding: calc(var(--pw)*.01) calc(var(--pw)*.02);
+      border-radius: 999px;
+      background: rgba(31, 27, 22, .08);
+      border: 1px solid rgba(31, 27, 22, .15);
+      font: 500 calc(var(--pw)*.02)/1.2 var(--mono);
+      color: var(--paper-ink);
+    }
+
+    .port-link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .4em;
+      padding: calc(var(--pw)*.012) calc(var(--pw)*.025);
+      border-radius: 999px;
+      background: var(--paper-ink);
+      color: var(--paper);
+      font: 500 calc(var(--pw)*.022)/1 var(--ui);
+      text-decoration: none;
+      transition: opacity .2s;
+    }
+
+    .port-link-btn:hover {
+      opacity: .85;
+    }
+
+    /* ---------- phones ---------- */
+    @media (max-width:760px) {
+      .nav {
+        left: max(5vw, env(safe-area-inset-left, 0px));
+        right: max(5vw, env(safe-area-inset-right, 0px));
+        top: calc(2.5vh + env(safe-area-inset-top, 0px));
+        height: auto;
+        grid-template-columns: auto 1fr
+      }
+
+      .links,
+      .signin {
+        display: none
+      }
+
+      .actions {
+        justify-self: end
+      }
+
+      .brand {
+        gap: 9px
+      }
+
+      .word {
+        --fs: 30vw;
+        top: calc(14vh + env(safe-area-inset-top, 0px))
+      }
+
+      .shelves {
+        top: calc(14vh + 30vw*1.1 + env(safe-area-inset-top, 0px));
+        gap: 10px 18px;
+        padding-left: max(8vw, env(safe-area-inset-left, 0px));
+        padding-right: max(8vw, env(safe-area-inset-right, 0px))
+      }
+
+      .r-head {
+        top: calc(3vh + env(safe-area-inset-top, 0px));
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding-inline: 16px
+      }
+
+      .r-head .ro-author {
+        display: none
+      }
+
+      .r-close {
+        top: auto;
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: calc(max(18px, 4.2vh) + 58px + env(safe-area-inset-bottom, 0px))
+      }
+    }
+
+    @media (prefers-reduced-motion:reduce) {
+
+      .tag,
+      .nav,
+      .word,
+      .shelves,
+      .hint,
+      .dim,
+      .r-shift,
+      .r-chrome {
+        transition: none !important
+      }
+    }
+  </style>
+
+  <div class="atmos" aria-hidden="true"></div>
+
+  <header class="nav" id="nav">
+    <a class="brand" href="/" target="_top" aria-label="Abhishek Singh Rana, Portfolio">
+      <span class="mark" aria-hidden="true"></span>
+      <span class="brand-text"><span class="brand-name">Abhishek Singh Rana</span><span class="brand-sub">Software
+          Engineer</span></span>
+    </a>
+    <nav class="links" aria-label="Primary">
+      <a href="/about" target="_top">About</a>
+      <a href="/skills" target="_top">Skills</a>
+      <a href="/experience" target="_top">Experience</a>
+      <a href="/projects" target="_top">Projects</a>
+      <a href="/blogs" target="_top">Blogs</a>
+      <a href="/contact" target="_top">Contact</a>
+    </nav>
+    <div class="actions">
+      <a class="signin" href="/contact" target="_top">Get in touch</a>
+      <a class="pill" href="#shelf">Open Book <svg viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="M2.5 6h7M6.5 3l3 3-3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg></a>
+    </div>
+  </header>
+
+  <h1 class="word" id="word">Abhishek</h1>
+
+  <div class="dim" aria-hidden="true"></div>
+  <canvas id="shelf" tabindex="0"
+    aria-label="Shelf of 32 books. Drag or use the arrow keys to browse, press Enter to open the highlighted book."></canvas>
+  <div class="grain" aria-hidden="true"></div>
+
+  <div class="tag" id="tag" aria-hidden="true" title="Click to open book in 3D">
+    <div class="tag-in" id="tag-in">
+      <div class="open-book-spread">
+        <!-- Left Page -->
+        <div class="ob-page ob-left">
+          <div class="ob-header">
+            <span class="ob-no" id="ro-no">RAN–001</span>
+            <span class="ob-chip" id="ro-chip">Abhishek Singh Rana</span>
+          </div>
+          <h4 class="ob-title" id="ro-title">Abhishek Singh Rana</h4>
+          <div class="ob-author" id="ro-author">Software Engineer (3 YOE)</div>
+          <p class="ob-desc" id="ro-desc">Building modern web experiences with precision &amp; craft.</p>
+          <div class="ob-footer">
+            <span id="ro-loc">Hyderabad, India</span>
+            <span class="ob-mark" aria-hidden="true"></span>
+          </div>
+        </div>
+
+        <!-- Center Gutter Crease Shadow -->
+        <div class="ob-gutter" aria-hidden="true"></div>
+
+        <!-- Right Page -->
+        <div class="ob-page ob-right">
+          <div class="ob-header">
+            <span class="ob-badge" id="ro-badge">3+ YOE &middot; MTS-1</span>
+            <span class="ob-folio" id="ro-folio">Vol. 01</span>
+          </div>
+          <div class="ob-stats">
+            <div class="ob-stat-item">
+              <span class="ob-stat-num" id="ro-stat1">Next.js 15</span>
+              <span class="ob-stat-lbl" id="ro-lbl1">App Router &middot; RSC</span>
+            </div>
+            <div class="ob-stat-item">
+              <span class="ob-stat-num" id="ro-stat2">Three.js</span>
+              <span class="ob-stat-lbl" id="ro-lbl2">Creative WebGL</span>
+            </div>
+          </div>
+          <div class="ob-metrics" id="ro-metrics">
+            <span>&bull; 3+ YOE</span>
+            <span>&bull; 20+ Projects</span>
+            <span>&bull; 100+ DSA</span>
+          </div>
+          <div class="ob-cta">
+            <span>Click book to open full volume 📖 &rarr;</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="hint" id="hint">Drag to browse · Click a book to open</p>
+
+  <section class="reader" id="reader" role="dialog" aria-modal="true" aria-label="Book preview" aria-hidden="true">
+    <div class="r-head r-chrome"><span class="ro-no" id="r-no"></span><span class="ro-title" id="r-title"></span><span
+        class="ro-author" id="r-author"></span></div>
+    <button class="r-close r-chrome" id="r-close" type="button">Close <svg viewBox="0 0 10 10" fill="none"
+        aria-hidden="true">
+        <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+      </svg></button>
+    <div class="r-stage" id="r-stage">
+      <div class="r-shift" id="r-shift"></div>
+    </div>
+    <div class="r-ctrl r-chrome">
+      <button class="r-btn" id="r-prev" type="button" aria-label="Previous page"><svg viewBox="0 0 14 14" fill="none"
+          aria-hidden="true">
+          <path d="M11 7H3M6.5 3.5 3 7l3.5 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg></button>
+      <span class="r-count" id="r-count" aria-live="polite">Front cover</span>
+      <button class="r-btn" id="r-next" type="button" aria-label="Next page"><svg viewBox="0 0 14 14" fill="none"
+          aria-hidden="true">
+          <path d="M3 7h8M7.5 3.5 11 7l-3.5 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg></button>
+    </div>
+  </section>
+
+  <div class="meas" id="meas" aria-hidden="true"></div>
+
+  <script type="importmap">
+{"imports":{
+  "three":"/demos/margin-press/vendor/three.module.js",
+  "three/addons/environments/RoomEnvironment.js":"/demos/margin-press/vendor/RoomEnvironment.js",
+  "page-flip":"/demos/margin-press/vendor/page-flip.module.js"
+}}
+</script>
+  <script type="module">
+    // Auto-detect embedded mode in iframe or URL param to hide duplicate nav
+    if (window.self !== window.top || location.search.includes('embedded=true') || location.search.includes('autoOpen=true')) {
+      document.documentElement.classList.add('embedded');
+      document.body.classList.add('embedded');
+    }
+
+    import * as THREE from 'three';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { PageFlip } from 'page-flip';
+
+    const ATLAS = {
+      "W": 3968, "H": 2944, "w": 480, "h": 720, "covers": [
+        { "t": "Abhishek Singh Rana", "a": "Software Engineer (3 YOE)", "s": "#1f2838", "x": 8, "y": 8 },
+        { "t": "DressUp Fashion", "a": "Full Stack E-Commerce", "s": "#d17b63", "x": 504, "y": 8 },
+        { "t": "Aura Experience", "a": "WebGL & Next.js 15", "s": "#2d3229", "x": 1000, "y": 8 },
+        { "t": "Media Recorder Suite", "a": "Browser Web APIs", "s": "#202020", "x": 1496, "y": 8 },
+        { "t": "Mental-UP Quiz", "a": "Interactive Platform", "s": "#27292c", "x": 1992, "y": 8 },
+        { "t": "Chatbot Flow Builder", "a": "ReactFlow Canvas", "s": "#bdd7c9", "x": 2488, "y": 8 },
+        { "t": "Zetexa Global", "a": "MTS-1 Software Engineer", "s": "#4a8089", "x": 2984, "y": 8 },
+        { "t": "98thPercentile", "a": "Frontend Developer", "s": "#6d8fac", "x": 3480, "y": 8 },
+        { "t": "BrainCells", "a": "Frontend Intern", "s": "#202a2c", "x": 8, "y": 744 },
+        { "t": "Next.js 15 Systems", "a": "App Router & RSC", "s": "#4a5637", "x": 504, "y": 744 },
+        { "t": "TypeScript Architecture", "a": "Strict Type-Safety", "s": "#d4b5b6", "x": 1000, "y": 744 },
+        { "t": "Three.js & Graphics", "a": "Creative WebGL", "s": "#797842", "x": 1496, "y": 744 },
+        { "t": "Docker & DevOps", "a": "Containers & CI/CD", "s": "#09191e", "x": 1992, "y": 744 },
+        { "t": "MongoDB & Databases", "a": "Backend Systems", "s": "#c66732", "x": 2488, "y": 744 },
+        { "t": "Promises in JS", "a": "Hashnode Article", "s": "#bacbdc", "x": 2984, "y": 744 },
+        { "t": "Nullish Coalescing", "a": "Hashnode Article", "s": "#58202f", "x": 3480, "y": 744 },
+        { "t": "Equality in JS", "a": "Hashnode Article", "s": "#166f8f", "x": 8, "y": 1480 },
+        { "t": "Blockchain & Web3", "a": "Hashnode Article", "s": "#843bd7", "x": 504, "y": 1480 },
+        { "t": "LeetCode 100+", "a": "DSA Problem Solving", "s": "#084253", "x": 1000, "y": 1480 },
+        { "t": "Redux Toolkit", "a": "Global State Flows", "s": "#0f0f0f", "x": 1496, "y": 1480 },
+        { "t": "Core Web Vitals", "a": "Speed Optimization", "s": "#212226", "x": 1992, "y": 1480 },
+        { "t": "Tailwind CSS", "a": "Responsive Systems", "s": "#3b2f1e", "x": 2488, "y": 1480 },
+        { "t": "Node & Express", "a": "REST API Design", "s": "#010101", "x": 2984, "y": 1480 },
+        { "t": "Git & Collaboration", "a": "Version Control", "s": "#fefefe", "x": 3480, "y": 1480 },
+        { "t": "Hyderabad, India", "a": "Base Location", "s": "#c4c7ce", "x": 8, "y": 2216 },
+        { "t": "Portfolio Edition", "a": "Abhishek Singh Rana", "s": "#f9d147", "x": 504, "y": 2216 },
+        { "t": "System Design", "a": "Scalable Architecture", "s": "#1a263d", "x": 1000, "y": 2216 },
+        { "t": "Full-Stack Engineer", "a": "Production Grade", "s": "#e8d8b9", "x": 1496, "y": 2216 },
+        { "t": "UI/UX Engineering", "a": "Pixel Precision", "s": "#140c1b", "x": 1992, "y": 2216 },
+        { "t": "Open Source", "a": "GitHub Contributions", "s": "#854527", "x": 2488, "y": 2216 },
+        { "t": "Client Delight", "a": "100% Satisfaction", "s": "#0b0b0b", "x": 2984, "y": 2216 },
+        { "t": "Get in Touch", "a": "abhisingh.72340@gmail.com", "s": "#ae9a6f", "x": 3480, "y": 2216 }
+      ], "order": [0, 25, 19, 10, 18, 16, 26, 24, 8, 6, 21, 13, 15, 1, 12, 14, 3, 9, 2, 27, 31, 30, 23, 22, 11, 29, 17, 20, 7, 28, 5, 4]
+    };
+    const N = 32;
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const coarse = matchMedia('(pointer: coarse)').matches;
+    const $ = id => document.getElementById(id);
+    const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+    const pad3 = n => String(n).padStart(3, '0');
+    const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    if (coarse) $('hint').textContent = 'Swipe to browse · Tap a book to open';
+
+    /* ---------- copy for the book interiors (all fictional) ---------- */
+    const OPENING = {
+      "Night Cartography": "My mother mapped the sky the way other people kept diaries, one small gold cross for every star she was certain of.",
+      "Afterglow": "The summer I turned nineteen, the evenings refused to end, and neither did the arguments.",
+      "The Concrete Garden": "Nobody had lived in the Halden Building for eleven years, but every spring something new was growing on the fourth floor.",
+      "Monolith": "It appeared overnight in the middle of the square, twelve metres tall and perfectly white, and by noon the whole town had decided what it meant.",
+      "Low Light": "The diner on Route 9 stayed open until four, which made it the only honest place in the county after midnight.",
+      "The Quiet Engine": "My grandfather built machines that did nothing, and he built them very carefully.",
+      "Salt & Static": "The radio picked up the fishing boats long before you could see them, a crackle of names and weather coming in over the water.",
+      "Chromatic": "Iris could hear colour, which was less useful than it sounds and a great deal louder.",
+      "The Last Light Hotel": "The sign had lost its first three letters years ago, so the hotel simply called itself TEL, and nobody minded.",
+      "Hollow City": "When the power came back on, only half the city remembered how to use it.",
+      "Soft Machines": "The robot in apartment 6C had started leaving notes under doors, and the notes were getting kinder.",
+      "The Orchard Ledger": "Every pear my great-aunt ever sold is written down in a green book, with the weather on the day she picked it.",
+      "Signal Lost": "At 03:12 the satellite stopped talking, and for the first time in forty years the station heard nothing at all.",
+      "Desert Hymns": "We crossed the dunes at night because the sand sang less when it was cold.",
+      "Wintering": "The first snow came early that year, and I decided I would let it keep me.",
+      "Velvet Hours": "The club opened at ten and closed whenever the last person stopped dancing, which on Thursdays was nearly dawn.",
+      "The Glass Archive": "The archive kept one copy of everything, and the archivist was beginning to suspect it kept one copy of her.",
+      "Ultraviolet": "There were things written on the walls of our school that you could only read with the lights off.",
+      "Tidewater": "The island was only an island twice a day, and Nell had learned to live in the gap between.",
+      "Meridian": "Halfway around the world, at exactly the same moment, two people decided to stay.",
+      "Small Fires": "We lit the candles when the power failed, and then we kept lighting them long after it returned.",
+      "Ferns & Ferrous": "The forest had been eating the old foundry for a century, rivet by rivet, and it was nearly finished.",
+      "Neon Saints": "Every bar on Mercer Street had a saint in the window, and every saint had a different idea of mercy.",
+      "A House Made of Rain": "The house at the end of Wren Lane leaked in such regular places that we gave each drip a name.",
+      "Cold Harbour": "The cranes stood in the fog like patient animals, waiting for ships that no longer came.",
+      "Lemon Season": "Our grandmother measured the year in lemons, and this year the tree was heavier than anyone could remember.",
+      "The Observatory": "The telescope had not moved in thirty years, but the stars had, and someone needed to keep track of them.",
+      "Sundial": "In the village of Ores the clocks were set by a stone in the square, and the stone was always slightly wrong.",
+      "Deep Field": "Look long enough at any dark patch of sky, my teacher said, and it will fill with galaxies.",
+      "Copper Sky": "The mountain turned the colour of a new coin every evening, and every evening my father stopped work to watch it.",
+      "Moth Theory": "Mira kept a jar of moths on her windowsill, and a theory about each one.",
+      "Open Road Elegy": "My brother left us a car, a cassette of songs he never finished, and four hundred miles of road."
+    };
+    const POOL = [
+      "It is easy, afterwards, to say that we should have noticed sooner. But the signs were small and ordinary, the kind of thing you set down on a table and forget. A door that would not quite close. A light left on in a room nobody used. A name mentioned once at dinner and then never again. We were busy, the days were long, and we believed, as people do, that there would always be time to look properly later.",
+      "In the mornings the street belonged to the bakers and the delivery vans, and to the old men who walked their dogs in slow, deliberate circles. I liked it best then, before the shops lifted their shutters, when the light came in low and gold and every window held a small, private fire. It felt like a place that had not yet decided who it would be that day, and so anything was still possible.",
+      "She kept her letters in a biscuit tin under the bed, sorted not by date but by weather. Rain in one bundle, heat in another, a thin stack tied with blue thread for the days when nothing happened at all. When I asked her why, she said she never remembered what year something had happened, only what the sky had looked like, and that this seemed to her the more important thing to keep.",
+      "There is a particular silence that follows bad news, and I learned that summer how many kinds of it there are. The silence of a kitchen when the kettle has just finished. The silence of a car parked outside a house, engine off, nobody getting out. The silence of someone deciding how much of the truth you can carry. I learned to listen to all of them, and to wait.",
+      "We walked until the path gave out and then a little further, into grass that came up to our knees. Neither of us spoke. Somewhere below, a dog barked twice and was answered, and the sound travelled so cleanly across the valley that it seemed to belong to us. I remember thinking that I would like to stay exactly there, at that height, in that light, for the rest of whatever came next.",
+      "Later, when people asked me how it began, I told them a simpler version, because the true one had too many doors in it. I said that I had found a key, that the key had fitted a lock, and that behind the lock there had been a room. All of that was true. What I did not say was that I had been looking for the room my whole life, and that I knew it the moment I saw it.",
+      "Nobody in the family could agree on when the trouble started. My aunt said it was the winter the river froze. My father said it was earlier, the spring someone sold the piano. I think now that it never started at all, that it had always been there, folded small inside us, waiting for a room large enough to open out in.",
+      "The letter arrived on a Tuesday, which seemed wrong. Important letters should come at the end of the week, when there is time to sit with them. This one sat on the hall table through dinner and a long phone call and the washing up, and by the time I opened it the house was dark and the words looked smaller than they were.",
+      "We were not, any of us, very good at saying what we meant. We said it instead with soup left on doorsteps, with lifts to the station at five in the morning, with a coat handed over without a word when the weather turned. It took me years to understand that this was a language too, and that I had been fluent in it all along.",
+      "By evening the rain had softened to a mist that hung over the rooftops and turned the streetlamps into dandelions. I sat at the window with a cup of tea going cold in my hands and watched the last bus pull away, empty and lit like a lantern. It is strange how a whole life can turn on a single ordinary evening, and how little it looks like anything at the time."
+    ];
+    const CHAPTERS = ["Before the Weather", "Small Hours", "What the Light Knew", "Arrivals", "A Room with Two Doors", "The Long Weekend", "Notes in the Margin", "Low Tide", "The Year of Keeping"];
+    const EPIGRAPHS = [
+      "What we keep, keeps us.",
+      "The light arrives long after the star has gone, and still we call it new.",
+      "Go slowly. The road is also the place.",
+      "Nothing is lost. It is only somewhere else.",
+      "Weather is the only diary everyone keeps."
+    ];
+
+    /* ---------- intro for the DOM layer ---------- */
+    const ease = 'cubic-bezier(.2,.8,.2,1)';
+    if (!reduce) {
+      $('word')?.animate([{ opacity: 0, transform: 'translateY(4vh)', filter: 'blur(14px)' }, { opacity: 1, transform: 'none', filter: 'blur(0)' }], { duration: 1400, delay: 150, easing: ease, fill: 'backwards' });
+      $('nav')?.animate([{ opacity: 0, transform: 'translateY(-1.2vh)' }, { opacity: 1, transform: 'none' }], { duration: 900, delay: 700, easing: ease, fill: 'backwards' });
+      $('shelves')?.animate([{ opacity: 0, transform: 'translateY(1.2vh)' }, { opacity: 1, transform: 'none' }], { duration: 900, delay: 850, easing: ease, fill: 'backwards' });
+      $('hint')?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 900, delay: 1600, easing: ease, fill: 'backwards' });
+    }
+
+    /* ---------- renderer, scene, camera ---------- */
+    const canvas = $('shelf');
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    } catch (e) { canvas.remove(); throw e; }
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setClearColor(0x000000, 0);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const scene = new THREE.Scene();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture;
+    scene.environmentIntensity = .55;
+
+    const camera = new THREE.PerspectiveCamera(19.5, innerWidth / innerHeight, .1, 100);
+    camera.position.set(3.6, 2.15, 7.4);
+    const look = new THREE.Vector3(-1.4, .05, -.6);
+
+    const key = new THREE.DirectionalLight(0xfff3e4, 2.4);
+    const keyTarget = new THREE.Object3D(); keyTarget.position.set(-5, -1.8, -2.2);
+    key.target = keyTarget;
+    key.position.copy(keyTarget.position).add(new THREE.Vector3(-4, 6, 6));
+    key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    Object.assign(key.shadow.camera, { left: -11, right: 11, top: 9, bottom: -9, near: .5, far: 30 });
+    key.shadow.bias = -.0004; key.shadow.normalBias = .025; key.shadow.radius = 4;
+    scene.add(key, keyTarget);
+    const rim = new THREE.DirectionalLight(0xbfd2ff, 1.1); rim.position.set(6, 3, -4); scene.add(rim);
+    scene.add(new THREE.AmbientLight(0xffffff, .12));
+
+    /* floor: an invisible depth plane the books rise out of, plus a shadow catcher */
+    const FLOOR = -1.87;
+    const occluder = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshBasicMaterial({ colorWrite: false }));
+    occluder.rotation.x = -Math.PI / 2; occluder.position.y = FLOOR; occluder.renderOrder = -1;
+    const catcher = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.ShadowMaterial({ opacity: .42 }));
+    catcher.rotation.x = -Math.PI / 2; catcher.position.y = FLOOR + .004; catcher.receiveShadow = true;
+    scene.add(occluder, catcher);
+
+    /* ---------- materials ---------- */
+    function pageTexture(vertical) {
+      const c = document.createElement('canvas'); c.width = c.height = 256;
+      const g = c.getContext('2d');
+      g.fillStyle = '#efe7d6'; g.fillRect(0, 0, 256, 256);
+      for (let i = 0; i < 256; i += 2) {
+        g.fillStyle = `rgba(92,70,44,${(.05 + Math.random() * .12).toFixed(3)})`;
+        vertical ? g.fillRect(i, 0, 1, 256) : g.fillRect(0, i, 256, 1);
+      }
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      return t;
+    }
+    const pagesSide = new THREE.MeshStandardMaterial({ map: pageTexture(true), roughness: .9 });
+    const pagesTop = new THREE.MeshStandardMaterial({ map: pageTexture(false), roughness: .9 });
+
+    const atlasTex = await new THREE.TextureLoader().loadAsync('/demos/margin-press/covers.webp');
+    atlasTex.colorSpace = THREE.SRGBColorSpace;
+    atlasTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+    const geo = new THREE.BoxGeometry(1, 1.5, .2);
+    const books = [];
+    for (let i = 0; i < N; i++) {
+      const ci = ATLAS.order[i], cv = ATLAS.covers[ci];
+      const tex = atlasTex.clone();
+      tex.repeat.set(ATLAS.w / ATLAS.W, ATLAS.h / ATLAS.H);
+      tex.offset.set(cv.x / ATLAS.W, 1 - (cv.y + ATLAS.h) / ATLAS.H);
+      tex.needsUpdate = true;
+      const spine = new THREE.Color(cv.s).multiplyScalar(.62);
+      const mats = [
+        pagesSide,                                                                                  // +x fore-edge
+        new THREE.MeshPhysicalMaterial({ color: spine, roughness: .55, clearcoat: .3 }),                 // -x spine
+        pagesTop, pagesTop,                                                                         // +y / -y
+        new THREE.MeshPhysicalMaterial({ map: tex, roughness: .42, clearcoat: .55, clearcoatRoughness: .35 }), // +z cover
+        new THREE.MeshPhysicalMaterial({ color: spine, roughness: .6 }),                                // -z back
+      ];
+      const mesh = new THREE.Mesh(geo, mats);
+      mesh.castShadow = true; mesh.receiveShadow = true;
+      const group = new THREE.Group();
+      group.rotation.y = .32;
+      group.add(mesh); scene.add(group);
+      const y0 = reduce ? 0 : -3;
+      mesh.position.y = y0;
+      mesh.userData.book = i;
+      books.push({ i, mesh, group, cover: ci, cv, y: y0, vy: 0, z: 0, vz: 0, lean: 0, vlean: 0, sx: 0, sy: 0, k: i, sinkAt: Infinity, riseAt: 0 });
+    }
+    const meshes = books.map(b => b.mesh);
+
+    /* ---------- carousel: scroll is measured in book slots ---------- */
+    const wrapK = x => ((x + 2) % N + N) % N - 2;          // slots -2 … 30; the ends dive into the floor
+    const slotPos = (k, out) => out.set(1.55 - k * .5, -1.12, .9 - k * .2);
+    const smooth = x => x * x * (3 - 2 * x);
+    let scroll = 0, svel = 0, dragging = false, coasting = false, drag = null;
+
+    /* ---------- sizing ---------- */
+    function resize() {
+      const w = innerWidth, h = innerHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.fov = w < h ? 40 : 19.5;
+      camera.updateProjectionMatrix();
+      camera.lookAt(look);
+      camera.updateMatrixWorld();
+      if (state === 'open') rebuildOpenBook();
+    }
+
+    /* ---------- screen helpers ---------- */
+    const v = new THREE.Vector3(), v2 = new THREE.Vector3();
+    function toScreen(p) { v2.copy(p).project(camera); return [(v2.x + 1) * .5 * innerWidth, (1 - v2.y) * .5 * innerHeight]; }
+    function slotScreen(k) { slotPos(k, v); v.y += .1; return toScreen(v); }
+
+    /* ---------- pointer, drag and click ---------- */
+    const P = { x: 0, y: 0, inside: false, last: -1e9 };
+    const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+    function pick(x, y) {
+      ndc.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1);
+      ray.setFromCamera(ndc, camera);
+      const hit = ray.intersectObjects(meshes, false).find(h => {
+        const b = books[h.object.userData.book];
+        return h.point.y > FLOOR + .02 && b.y > -1.2;
+      });
+      return hit ? books[hit.object.userData.book] : null;
+    }
+    canvas.addEventListener('pointerdown', e => {
+      if (state !== 'shelf' || e.button > 0) return;
+      canvas.setPointerCapture(e.pointerId);
+      // screen direction of "+1 slot" near the grabbed point, so the row sticks to the finger
+      let near = 0, nd = 1e9;
+      for (const b of books) { const d = (b.sx - e.clientX) ** 2 + (b.sy - e.clientY) ** 2; if (d < nd && b.k > -1 && b.k < 28) { nd = d; near = b.k; } }
+      const a = slotScreen(near + .5), c = slotScreen(near - .5);
+      const dx = c[0] - a[0], dy = c[1] - a[1], len = Math.hypot(dx, dy) || 1;
+      drag = { x: e.clientX, y: e.clientY, s0: scroll, ux: dx / len, uy: dy / len, px: len, t: performance.now(), moved: 0, samples: [[performance.now(), scroll]] };
+      dragging = true; coasting = false; svel = 0;
+      P.x = e.clientX; P.y = e.clientY; P.inside = true; P.last = performance.now();
+    });
+    addEventListener('pointermove', e => {
+      if (drag) {
+        const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        drag.moved = Math.max(drag.moved, Math.hypot(dx, dy));
+        if (drag.moved > 4) canvas.classList.add('grabbing');
+        scroll = drag.s0 + (dx * drag.ux + dy * drag.uy) / drag.px;
+        const now = performance.now();
+        drag.samples.push([now, scroll]);
+        while (drag.samples.length > 2 && now - drag.samples[0][0] > 90) drag.samples.shift();
+      }
+      if (e.pointerType === 'touch' && !drag) return;
+      P.x = e.clientX; P.y = e.clientY; P.inside = true; P.last = performance.now();
+    }, { passive: true });
+    function endDrag(e) {
+      if (!drag) return;
+      const d = drag; drag = null; dragging = false;
+      canvas.classList.remove('grabbing');
+      const s = d.samples, a = s[0], b = s[s.length - 1];
+      const dt = (b[0] - a[0]) / 1000;
+      svel = dt > .008 ? clamp((b[1] - a[1]) / dt, -45, 45) : 0;
+      if (performance.now() - b[0] > 90) svel = 0;
+      coasting = true;
+      if (e.pointerType === 'touch') P.inside = false;
+      if (e.type === 'pointerup' && d.moved < 6 && performance.now() - d.t < 600) {
+        const hit = pick(e.clientX, e.clientY);
+        if (hit) return openBook(hit);
+        // a click on empty canvas falls through to the shelf links underneath
+        const link = document.elementsFromPoint(e.clientX, e.clientY).map(n => n.closest && n.closest('a')).find(Boolean);
+        if (link) link.click();
+      }
+    }
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+    document.documentElement.addEventListener('pointerleave', () => { P.inside = false; });
+    addEventListener('blur', () => { P.inside = false; });
+    addEventListener('wheel', e => {
+      if (state === 'open' || state === 'turning') {
+        // When a book is open in 3D, wheeling flips pages
+        if (Math.abs(e.deltaY) > 25) {
+          e.preventDefault();
+          go(e.deltaY > 0 ? 1 : -1);
+        }
+        return;
+      }
+      if (state !== 'shelf') return;
+
+      const isHorizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+      const hit = pick(e.clientX, e.clientY);
+
+      // When scrolling directly over a book OR scrolling horizontally, scroll the books carousel
+      if (hit || isHorizontal) {
+        e.preventDefault();
+        const d = isHorizontal ? e.deltaX : e.deltaY;
+        svel = clamp(svel + d * .022, -30, 30);
+        coasting = true;
+      } else {
+        // When scrolling on empty background / wordmark / outside books, scroll the page down smoothly!
+        e.preventDefault();
+        const rawDelta = e.deltaY;
+        // Normalize deltaMode: 0 = pixels, 1 = lines, 2 = pages
+        const dy = e.deltaMode === 1 ? rawDelta * 28 : (e.deltaMode === 2 ? rawDelta * innerHeight : rawDelta);
+        try {
+          if (window.self !== window.top) {
+            window.parent.postMessage({ type: 'SCROLL_PARENT', deltaY: dy }, '*');
+          }
+        } catch (err) { }
+      }
+    }, { passive: false });
+
+    /* ---------- catalogue open-book hover details ---------- */
+    const BOOK_DETAILS = [
+      {
+        desc: "Software Engineer with 3+ YOE based in Hyderabad, India. Specializing in high-performance Next.js 15 architectures, Three.js 3D WebGL, and scalable TypeScript systems.",
+        badge: "MTS-1 · Zetexa",
+        stat1: "Next.js 15",
+        lbl1: "App Router & RSC",
+        stat2: "Three.js",
+        lbl2: "Creative WebGL",
+        metrics: ["3+ YOE", "20+ Projects", "100% Satisfaction", "100+ DSA"]
+      },
+      {
+        desc: "Feature-rich fashion shopping platform with multi-facet sorting, authentication, cart management, wishlist, and responsive checkout flows.",
+        badge: "Full Stack App",
+        stat1: "React.js",
+        lbl1: "Context & Hooks",
+        stat2: "Tailwind CSS",
+        lbl2: "Responsive UI",
+        metrics: ["Live Demo", "Cart & Wishlist", "Mockbee Auth", "GitHub Repo"]
+      },
+      {
+        desc: "Luxury 3D interactive digital product showcase with custom WebGL shaders, ambient lighting, and fluid camera physics.",
+        badge: "WebGL Experience",
+        stat1: "Three.js",
+        lbl1: "Custom Shaders",
+        stat2: "Next.js 15",
+        lbl2: "App Router 3D",
+        metrics: ["60 FPS", "Shader Physics", "TypeScript", "Vercel Live"]
+      },
+      {
+        desc: "Browser utility tool capturing webcam, microphone, and screen streams with real-time preview and immediate local zero-latency export.",
+        badge: "Web APIs Utility",
+        stat1: "MediaRecorder",
+        lbl1: "Native Browser API",
+        stat2: "React.js",
+        lbl2: "Audio / Video",
+        metrics: ["Screen Record", "Webcam Feed", "Local Export", "Netlify Live"]
+      },
+      {
+        desc: "Interactive educational quiz and cognitive activity platform with dynamic question sets, timed challenges, and real-time score tracking.",
+        badge: "Interactive Quiz",
+        stat1: "Custom Hooks",
+        lbl1: "State Machine",
+        stat2: "Timed Engine",
+        lbl2: "Analytics",
+        metrics: ["Score Analytics", "Quiz Challenges", "Themes", "Netlify Live"]
+      },
+      {
+        desc: "Visual decision tree builder for constructing and editing conversational chatbot logic graphs on an infinite draggable canvas.",
+        badge: "Node Graph Tool",
+        stat1: "ReactFlow",
+        lbl1: "Visual Node Tree",
+        stat2: "State Graph",
+        lbl2: "Dynamic Flow",
+        metrics: ["Infinite Canvas", "Logic Nodes", "Draggable", "Open Source"]
+      },
+      {
+        desc: "MTS-1 (Member of Technical Staff) at Zetexa Global architecting Next.js 15 platforms, optimizing Core Web Vitals with 40% reduction in FCP.",
+        badge: "Current Role · MTS-1",
+        stat1: "Next.js 15",
+        lbl1: "Server Components",
+        stat2: "40% FCP Cut",
+        lbl2: "Core Web Vitals",
+        metrics: ["Zetexa Global", "Hyderabad", "Design System", "TypeScript"]
+      },
+      {
+        desc: "Frontend Developer at 98thPercentile engineering high-traffic student and instructor dashboards handling thousands of concurrent users.",
+        badge: "Frontend Engineer",
+        stat1: "Redux Toolkit",
+        lbl1: "Global State",
+        stat2: "High Traffic",
+        lbl2: "Real-Time Quizzes",
+        metrics: ["98thPercentile", "Dashboards", "Classroom", "2023–2024"]
+      },
+      {
+        desc: "Frontend Intern at BrainCells constructing client-facing web pages and responsive UI elements with pixel precision from Figma designs.",
+        badge: "Frontend Intern",
+        stat1: "React.js",
+        lbl1: "Component Models",
+        stat2: "TypeScript",
+        lbl2: "Pixel Precision",
+        metrics: ["BrainCells", "Figma to Code", "Modular React", "2022–2023"]
+      },
+      {
+        desc: "Deep production expertise in Next.js 15 App Router, React Server Components (RSC), server actions, dynamic routing, and streaming SSR.",
+        badge: "Core Framework",
+        stat1: "Next.js 15",
+        lbl1: "App Router",
+        stat2: "React 19",
+        lbl2: "Server Actions",
+        metrics: ["Zero Runtime", "Streaming", "Turbopack", "Production"]
+      },
+      {
+        desc: "Strict type safety standards, generic models, self-documenting interfaces, and zero-compiler-warning philosophy across full-stack applications.",
+        badge: "Type Safety",
+        stat1: "TypeScript",
+        lbl1: "Strict Mode",
+        stat2: "Clean Code",
+        lbl2: "Zero Warnings",
+        metrics: ["Generics", "Type Inference", "API Contracts", "Refactoring"]
+      },
+      {
+        desc: "Creative WebGL development with Three.js, React Three Fiber (R3F), GLSL shader programming, and performant 60fps animations.",
+        badge: "3D & WebGL",
+        stat1: "Three.js",
+        lbl1: "Scene Graph",
+        stat2: "WebGL Shaders",
+        lbl2: "60 FPS R3F",
+        metrics: ["3D Physics", "Camera Math", "Lighting", "Shadows"]
+      },
+      {
+        desc: "Containerized environments with Docker, automated CI/CD workflows, Git branching strategies, and reliable Vercel cloud deployments.",
+        badge: "DevOps & Tools",
+        stat1: "Docker",
+        lbl1: "Containers",
+        stat2: "CI / CD",
+        lbl2: "Automated Deploy",
+        metrics: ["Git / GitHub", "Turbopack", "Vercel", "Bitbucket"]
+      },
+      {
+        desc: "Backend architecture with Node.js, Express RESTful APIs, MongoDB NoSQL document modeling, PostgreSQL schemas, and Prisma ORM.",
+        badge: "Backend Systems",
+        stat1: "Node.js",
+        lbl1: "Express REST",
+        stat2: "MongoDB",
+        lbl2: "PostgreSQL & Prisma",
+        metrics: ["REST APIs", "CRUD Operations", "Indexes", "Microservices"]
+      },
+      {
+        desc: "Hashnode Publication: Comprehensive breakdown of JavaScript async execution, microtask queues, event loop, Promise.all, and async/await.",
+        badge: "Tech Article",
+        stat1: "Promises",
+        lbl1: "Event Loop Queue",
+        stat2: "Hashnode",
+        lbl2: "5 Min Read",
+        metrics: ["JavaScript", "Async / Await", "Microtasks", "Published"]
+      },
+      {
+        desc: "Hashnode Publication: Deep dive into ES2020 nullish coalescing (??) vs logical OR (||), optional chaining (?.) and runtime TypeError safety.",
+        badge: "Tech Article",
+        stat1: "ES2020",
+        lbl1: "Nullish ??",
+        stat2: "Optional ?.",
+        lbl2: "4 Min Read",
+        metrics: ["Clean Code", "Defensive Coding", "Type Safety", "Published"]
+      },
+      {
+        desc: "Hashnode Publication: Understanding type coercion, implicit casting algorithms, and loose vs strict equality (== vs ===) inside V8 engines.",
+        badge: "Tech Article",
+        stat1: "== vs ===",
+        lbl1: "Type Coercion",
+        stat2: "V8 Engine",
+        lbl2: "4 Min Read",
+        metrics: ["JavaScript", "Coercion Rules", "Deep Dive", "Published"]
+      },
+      {
+        desc: "Hashnode Publication: Fundamentals of distributed ledgers, cryptographic hashing, consensus algorithms, and smart contract architecture.",
+        badge: "Tech Article",
+        stat1: "Blockchain",
+        lbl1: "Distributed Ledger",
+        stat2: "Consensus",
+        lbl2: "6 Min Read",
+        metrics: ["Web3", "Cryptography", "P2P Systems", "Published"]
+      },
+      {
+        desc: "Proven problem-solving capabilities with 100+ algorithmic problems solved on LeetCode covering dynamic programming, graphs, and trees.",
+        badge: "Problem Solving",
+        stat1: "100+ Solved",
+        lbl1: "LeetCode DSA",
+        stat2: "Complexity",
+        lbl2: "Space & Time",
+        metrics: ["Data Structures", "Algorithms", "Binary Trees", "Graphs"]
+      },
+      {
+        desc: "Global application state management with Redux Toolkit, createSlice architecture, memoized selectors, and RTK Query data fetching.",
+        badge: "State Management",
+        stat1: "Redux Toolkit",
+        lbl1: "Slices & Thunks",
+        stat2: "Context API",
+        lbl2: "Predictable State",
+        metrics: ["State Flows", "Middleware", "Immutability", "Actions"]
+      },
+      {
+        desc: "Core Web Vitals optimization expert: First Contentful Paint (FCP), Largest Contentful Paint (LCP), Cumulative Layout Shift (CLS), and font swaps.",
+        badge: "Optimization",
+        stat1: "Core Web Vitals",
+        lbl1: "LCP & FCP",
+        stat2: "40% Speedup",
+        lbl2: "Zetexa Global",
+        metrics: ["Tree Shaking", "Code Split", "Image CDN", "Lighthouse 95+"]
+      },
+      {
+        desc: "Responsive pixel-perfect layouts crafted with Tailwind CSS, custom design tokens, modern grid/flex layouts, and dark obsidian themes.",
+        badge: "Design Systems",
+        stat1: "Tailwind CSS",
+        lbl1: "Utility First",
+        stat2: "Responsive",
+        lbl2: "Mobile to 4K",
+        metrics: ["Custom Themes", "Design Tokens", "Dark Mode", "Fluid Units"]
+      },
+      {
+        desc: "Robust RESTful API design with Express.js, JWT authentication, route validation, middleware pipelines, and scalable database connections.",
+        badge: "API Architecture",
+        stat1: "RESTful APIs",
+        lbl1: "Express Endpoints",
+        stat2: "Auth & JWT",
+        lbl2: "Secure Tokens",
+        metrics: ["JSON Contracts", "Middlewares", "Validation", "CORS"]
+      },
+      {
+        desc: "Collaborative engineering workflows with Git, GitHub pull requests, Bitbucket code reviews, conventional commits, and trunk-based branching.",
+        badge: "Engineering Culture",
+        stat1: "Git / GitHub",
+        lbl1: "Version Control",
+        stat2: "Code Reviews",
+        lbl2: "High Quality",
+        metrics: ["Clean Commits", "Pull Requests", "CI Validation", "Branching"]
+      },
+      {
+        desc: "Based in Hyderabad, Telangana, India. Available for high-impact full-stack and modern frontend engineering roles worldwide.",
+        badge: "Base Station",
+        stat1: "Hyderabad",
+        lbl1: "Telangana, India",
+        stat2: "Open to Roles",
+        lbl2: "Full-Time Eng",
+        metrics: ["Immediate Join", "Remote / Hybrid", "Global Teams", "IST Zone"]
+      },
+      {
+        desc: "Master Volume of Abhishek Singh Rana's interactive portfolio. Turn pages to explore full biography, skills matrix, career, and projects.",
+        badge: "Master Archive",
+        stat1: "Portfolio",
+        lbl1: "2026 Edition",
+        stat2: "PageFlip 3D",
+        lbl2: "6 Spreads",
+        metrics: ["Biography", "Skills Matrix", "Experience", "Click to Open"]
+      },
+      {
+        desc: "System design and software architecture principles: microservices, client-server separation, event-driven flows, caching, and resiliency.",
+        badge: "System Design",
+        stat1: "Architecture",
+        lbl1: "Scalable Systems",
+        stat2: "Resilience",
+        lbl2: "Clean Boundaries",
+        metrics: ["Modularity", "Caching", "Performance", "Extensibility"]
+      },
+      {
+        desc: "Comprehensive full-stack engineering capability spanning polished interactive user interfaces down to secure backend databases.",
+        badge: "Full Stack Eng",
+        stat1: "3+ Years",
+        lbl1: "Full Stack Exp",
+        stat2: "Production",
+        lbl2: "End-to-End Apps",
+        metrics: ["Frontend UI", "Backend APIs", "Databases", "DevOps"]
+      },
+      {
+        desc: "High sensitivity to typography, micro-interactions, spring physics, layout harmony, and delightful tactile user experiences.",
+        badge: "UI / UX Precision",
+        stat1: "Micro Physics",
+        lbl1: "Smooth Springs",
+        stat2: "Typography",
+        lbl2: "Instrument & News",
+        metrics: ["Figma Fidelity", "Accessibility", "Aesthetics", "Delight"]
+      },
+      {
+        desc: "Active open-source contributor and creator on GitHub. Explore code repositories, experiments, utilities, and components.",
+        badge: "Open Source",
+        stat1: "GitHub Works",
+        lbl1: "@abhishek72340",
+        stat2: "Public Repos",
+        lbl2: "Code Samples",
+        metrics: ["Open Source", "Star Projects", "Contributions", "Continuous"]
+      },
+      {
+        desc: "100% track record of reliability, timely delivery, transparent communication, and client satisfaction on all delivered software projects.",
+        badge: "Client Delight",
+        stat1: "100% Score",
+        lbl1: "Satisfaction",
+        stat2: "Quality First",
+        lbl2: "Zero Bugs",
+        metrics: ["On-time Delivery", "Clear Comms", "High Standards", "Reliable"]
+      },
+      {
+        desc: "Let's connect! Email: abhisingh.72340@gmail.com · LinkedIn: Abhishek Singh Rana · GitHub: @abhishek72340. Open for opportunities.",
+        badge: "Direct Contact",
+        stat1: "Email Abhishek Singh Rana",
+        lbl1: "Direct Inbox",
+        stat2: "Open to Work",
+        lbl2: "Full-Time / Lead",
+        metrics: ["Send Email", "Connect LinkedIn", "View GitHub", "Click to Open"]
+      }
+    ];
+
+    /* ---------- catalogue open-book tag ---------- */
+    const tag = $('tag'), tagIn = $('tag-in');
+    let shown = -1, tagX = 0, tagY = 0;
+    function show(i) {
+      if (i === shown) return;
+      shown = i;
+      const b = books[i];
+      const d = BOOK_DETAILS[i] || BOOK_DETAILS[0];
+      const no = 'RAN–' + pad3(i + 1);
+
+      const elNo = $('ro-no'), elTitle = $('ro-title'), elAuthor = $('ro-author'), elDesc = $('ro-desc');
+      const elBadge = $('ro-badge'), elFolio = $('ro-folio'), elStat1 = $('ro-stat1'), elLbl1 = $('ro-lbl1');
+      const elStat2 = $('ro-stat2'), elLbl2 = $('ro-lbl2'), elMetrics = $('ro-metrics');
+
+      if (elNo) elNo.textContent = no;
+      if (elTitle) elTitle.textContent = b.cv.t;
+      if (elAuthor) elAuthor.textContent = b.cv.a;
+      if (elDesc) elDesc.textContent = d.desc;
+      if (elBadge) elBadge.textContent = d.badge;
+      if (elFolio) elFolio.textContent = 'Vol. ' + pad3(i + 1).slice(1);
+      if (elStat1) elStat1.textContent = d.stat1;
+      if (elLbl1) elLbl1.textContent = d.lbl1;
+      if (elStat2) elStat2.textContent = d.stat2;
+      if (elLbl2) elLbl2.textContent = d.lbl2;
+      if (elMetrics && d.metrics) {
+        elMetrics.innerHTML = d.metrics.map(m => `<span>&bull; ${m}</span>`).join('');
+      }
+    }
+
+    tagIn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (state === 'shelf' && shown >= 0) {
+        openBook(books[shown]);
+      }
+    });
+
+    /* ================= reader ================= */
+    const reader = $('reader'), stage = $('r-stage'), shift = $('r-shift'), meas = $('meas');
+    let state = 'shelf';          // shelf → opening → open → turning → closing → shelf
+    let hero = null, heroTween = null, pf = null, spread = 0, lastSpread = 7, openT = 0, closeT = 0;
+
+    function readerLayout() {
+      const land = innerWidth > innerHeight * 1.05 && innerWidth >= 640;
+      let ph = land ? Math.min(innerHeight * .68, innerWidth * .84 / 2 * 1.5) : Math.min(innerHeight * .6, innerWidth * .78 * 1.5);
+      const pw = Math.round(ph / 1.5); ph = Math.round(pw * 1.5);
+      return { land, pw, ph, cx: innerWidth / 2, cy: innerHeight * .48 };
+    }
+
+    /* the 3D pose whose cover lines up exactly with the closed DOM cover */
+    const fwd = new THREE.Vector3();
+    function readingPose(L) {
+      const vis = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+      const d = 1.5 * innerHeight / (L.ph * vis);
+      camera.getWorldDirection(fwd);
+      const p = new THREE.Vector3(L.cx / innerWidth * 2 - 1, -(L.cy / innerHeight) * 2 + 1, .5).unproject(camera);
+      const dir = p.sub(camera.position).normalize();
+      const pos = camera.position.clone().addScaledVector(dir, d / dir.dot(fwd)).addScaledVector(fwd, .1);
+      return { pos, quat: camera.quaternion.clone() };
+    }
+
+    function lum(hex) { const n = parseInt(hex.slice(1), 16); return (.2126 * (n >> 16 & 255) + .7152 * (n >> 8 & 255) + .0722 * (n & 255)) / 255; }
+    function barcode(seed) {
+      let s = seed * 9301 + 49297, x = 0, stops = [];
+      while (x < 100) { s = (s * 9301 + 49297) % 233280; const w = .8 + (s / 233280) * 2.6; stops.push(`#111 ${x.toFixed(1)}% ${(x + w * .55).toFixed(1)}%`, `transparent ${(x + w * .55).toFixed(1)}% ${(x + w).toFixed(1)}%`); x += w; }
+      return `linear-gradient(to right, ${stops.join(',')})`;
+    }
+
+    function pagesHTML(b, L) {
+      const cv = b.cv, no = 'MGN–' + pad3(b.i + 1), sc = L.pw / ATLAS.w;
+      const cover = `background-image:url(/demos/margin-press/covers.webp);background-size:${(ATLAS.W * sc).toFixed(2)}px ${(ATLAS.H * sc).toFixed(2)}px;background-position:${(-cv.x * sc).toFixed(2)}px ${(-cv.y * sc).toFixed(2)}px`;
+      const end = new THREE.Color(cv.s).multiplyScalar(.82).getStyle();
+      const dark = lum(cv.s) > .55;
+      const t = esc(cv.t), a = esc(cv.a);
+
+      return [
+        /* 0: Front Cover */
+        `<div class="pg" data-density="hard"><div class="cv" style="${cover}"></div></div>`,
+
+        /* 1: Left Endpaper (Hard) */
+        `<div class="pg pg-end left" data-density="hard"><div class="in" style="--end:${end}"><div class="exlib"><small>Ex Libris</small><b>Abhishek Singh Rana</b><small>Software Engineer</small><i></i><p style="font:400 calc(var(--pw)*.02)/1.4 var(--mono);margin:calc(var(--pw)*.02) 0 0;color:var(--paper-soft);text-transform:uppercase;letter-spacing:0.1em;">Portfolio &middot; 2026 Edition</p></div></div></div>`,
+
+        /* 2: Half Title */
+        `<div class="pg paper right"><div class="in"><div class="half" style="top:30%;"><span style="font:400 calc(var(--pw)*.022)/1 var(--mono);text-transform:uppercase;letter-spacing:.25em;color:var(--paper-soft);display:block;margin-bottom:calc(var(--pw)*.03);">The Selected Works &amp; Archive</span>Building modern web experiences with precision &amp; craft.<span style="display:block;width:calc(var(--pw)*.08);height:1px;background:rgba(31,27,22,.3);margin:calc(var(--pw)*.04) auto 0;"></span></div><div style="position:absolute;left:14%;right:14%;bottom:12%;text-align:center;"><span class="label" style="font-size:calc(var(--pw)*.02);">Hyderabad, Telangana &middot; India</span></div></div></div>`,
+
+        /* 3: Engineering Metrics */
+        `<div class="pg paper left"><div class="in"><div class="also" style="top:18%;left:12%;right:12%;"><span class="label">Engineering Metrics</span><div style="display:grid;grid-template-columns:1fr 1fr;gap:calc(var(--pw)*.035);margin-top:calc(var(--pw)*.04);"><div style="border-left:2px solid rgba(201,162,122,.6);padding-left:calc(var(--pw)*.025);"><div style="font:italic 400 calc(var(--pw)*.07)/1 var(--display);color:var(--paper-ink);">3+</div><div style="font:500 calc(var(--pw)*.022)/1.2 var(--mono);text-transform:uppercase;color:var(--paper-soft);margin-top:calc(var(--pw)*.01);">Years Experience</div></div><div style="border-left:2px solid rgba(201,162,122,.6);padding-left:calc(var(--pw)*.025);"><div style="font:italic 400 calc(var(--pw)*.07)/1 var(--display);color:var(--paper-ink);">20+</div><div style="font:500 calc(var(--pw)*.022)/1.2 var(--mono);text-transform:uppercase;color:var(--paper-soft);margin-top:calc(var(--pw)*.01);">Projects Built</div></div><div style="border-left:2px solid rgba(201,162,122,.6);padding-left:calc(var(--pw)*.025);"><div style="font:italic 400 calc(var(--pw)*.07)/1 var(--display);color:var(--paper-ink);">100%</div><div style="font:500 calc(var(--pw)*.022)/1.2 var(--mono);text-transform:uppercase;color:var(--paper-soft);margin-top:calc(var(--pw)*.01);">Satisfaction</div></div><div style="border-left:2px solid rgba(201,162,122,.6);padding-left:calc(var(--pw)*.025);"><div style="font:italic 400 calc(var(--pw)*.07)/1 var(--display);color:var(--paper-ink);">100+</div><div style="font:500 calc(var(--pw)*.022)/1.2 var(--mono);text-transform:uppercase;color:var(--paper-soft);margin-top:calc(var(--pw)*.01);">LeetCode DSA</div></div></div><div style="margin-top:calc(var(--pw)*.06);font:400 calc(var(--pw)*.025)/1.5 var(--book);color:var(--paper-soft);"><p style="margin:0;">Focused on high-performance rendering, zero-overhead client architectures, and production Next.js 15 systems.</p></div></div></div></div>`,
+
+        /* 4: Title Page */
+        `<div class="pg paper right"><div class="in"><div class="tp"><h2>Abhishek Singh Rana</h2><div class="by" style="letter-spacing:.2em;">Software Engineer &middot; Full Stack</div><div class="imprint"><span class="mark"></span><span style="font:italic 400 calc(var(--pw)*.04)/1 var(--display);">Portfolio Edition &middot; 2026</span><span style="font:400 calc(var(--pw)*.02)/1 var(--mono);letter-spacing:.15em;text-transform:uppercase;color:var(--paper-soft);">Hyderabad &middot; Open to Opportunities</span></div></div></div></div>`,
+
+        /* 5: Table of Contents */
+        `<div class="pg paper left"><div class="in"><div class="toc" style="top:15%;left:12%;right:12%;"><span class="label">Index of Chapters</span><ol style="margin-top:calc(var(--pw)*.05);gap:calc(var(--pw)*.025);"><li><span class="n">I</span>About Abhishek Singh Rana<span class="d"></span><span class="p">01</span></li><li><span class="n">II</span>Technical Stack &amp; Skills<span class="d"></span><span class="p">02</span></li><li><span class="n">III</span>Professional Experience<span class="d"></span><span class="p">03</span></li><li><span class="n">IV</span>Selected Projects<span class="d"></span><span class="p">04</span></li><li><span class="n">V</span>Technical Dispatches<span class="d"></span><span class="p">05</span></li><li><span class="n">VI</span>Contact &amp; Colophon<span class="d"></span><span class="p">06</span></li></ol><div style="margin-top:calc(var(--pw)*.06);padding-top:calc(var(--pw)*.03);border-top:1px solid rgba(31,27,22,.15);font:400 calc(var(--pw)*.022)/1.4 var(--mono);color:var(--paper-soft);text-transform:uppercase;letter-spacing:.1em;">Turn pages to explore &middot; Use &larr; &rarr; keys</div></div></div></div>`,
+
+        /* 6: Chapter One: About */
+        `<div class="pg paper right opener"><div class="in"><div class="ch"><span class="label">Chapter One</span><h3>About Abhishek Singh Rana</h3></div><div class="body" style="top:calc(var(--pw)*.46);"><p class="first">I am a Software Engineer based in Hyderabad, India, with over 3 years of hands-on experience building modern, high-performance web applications and resilient software systems.</p><p>My core expertise spans the modern React ecosystem, Next.js 15 App Router, TypeScript, and scalable Node.js backends. I bridge the gap between creative visual presentation and robust computer science fundamentals.</p></div><span class="folio">01</span></div></div>`,
+
+        /* 7: About - Values & Philosophy */
+        `<div class="pg paper left"><div class="in"><span class="rh">Philosophy &amp; Values</span><div class="body" style="top:calc(var(--pw)*.14);"><p class="first" style="font-style:italic;">“Simplicity is prerequisite for reliability.”</p><p>I believe great digital software is made when performance, accessibility, and visual delight come together. Whether it's cutting 40% off First Contentful Paint at Zetexa Global, creating immersive Three.js WebGL interactions, or solving complex DSA problems, I approach every challenge with craft and clarity.</p><div style="margin-top:calc(var(--pw)*.04);padding:calc(var(--pw)*.03);background:rgba(201,162,122,.12);border-radius:6px;border:1px solid rgba(201,162,122,.3);"><div style="font:600 calc(var(--pw)*.022)/1 var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--paper-ink);">Current Focus</div><div style="font:400 calc(var(--pw)*.024)/1.4 var(--book);color:var(--paper-soft);margin-top:calc(var(--pw)*.015);">MTS-1 at Zetexa Global &middot; Architecting Next.js 15 platforms &middot; Full Stack TypeScript</div></div></div><span class="folio">02</span></div></div>`,
+
+        /* 8: Chapter Two: Skills (Frontend & 3D) */
+        `<div class="pg paper right"><div class="in"><span class="rh">Chapter Two &middot; Technical Stack</span><div class="body" style="top:calc(var(--pw)*.14);"><div style="font:italic 400 calc(var(--pw)*.05)/1 var(--display);margin-bottom:calc(var(--pw)*.02);color:var(--paper-ink);">Frontend &amp; Visuals</div><div style="display:flex;flex-wrap:wrap;gap:calc(var(--pw)*.015);margin-bottom:calc(var(--pw)*.04);"><span class="port-chip">Next.js 15</span><span class="port-chip">React.js</span><span class="port-chip">TypeScript</span><span class="port-chip">Tailwind CSS</span><span class="port-chip">Three.js</span><span class="port-chip">React Three Fiber</span><span class="port-chip">Framer Motion</span><span class="port-chip">Redux Toolkit</span><span class="port-chip">ReactFlow</span></div><div style="font:italic 400 calc(var(--pw)*.05)/1 var(--display);margin-bottom:calc(var(--pw)*.02);color:var(--paper-ink);">Backend &amp; Data</div><div style="display:flex;flex-wrap:wrap;gap:calc(var(--pw)*.015);"><span class="port-chip">Node.js</span><span class="port-chip">Express.js</span><span class="port-chip">REST APIs</span><span class="port-chip">MongoDB</span><span class="port-chip">PostgreSQL</span><span class="port-chip">Prisma</span></div></div><span class="folio">03</span></div></div>`,
+
+        /* 9: Chapter Two: Skills (DevOps & CS) */
+        `<div class="pg paper left"><div class="in"><span class="rh">DevOps &amp; Core Science</span><div class="body" style="top:calc(var(--pw)*.14);"><div style="font:italic 400 calc(var(--pw)*.05)/1 var(--display);margin-bottom:calc(var(--pw)*.02);color:var(--paper-ink);">Tools &amp; DevOps</div><div style="display:flex;flex-wrap:wrap;gap:calc(var(--pw)*.015);margin-bottom:calc(var(--pw)*.04);"><span class="port-chip">Docker</span><span class="port-chip">Git / GitHub</span><span class="port-chip">Turbopack / Webpack</span><span class="port-chip">Vercel CI/CD</span><span class="port-chip">Jest &amp; Testing</span></div><div style="font:italic 400 calc(var(--pw)*.05)/1 var(--display);margin-bottom:calc(var(--pw)*.02);color:var(--paper-ink);">Computer Science</div><div style="display:flex;flex-wrap:wrap;gap:calc(var(--pw)*.015);margin-bottom:calc(var(--pw)*.03);"><span class="port-chip">Data Structures</span><span class="port-chip">Algorithms (100+ Solved)</span><span class="port-chip">System Design</span><span class="port-chip">OOP &amp; Patterns</span></div><p style="font:400 calc(var(--pw)*.024)/1.5 var(--book);color:var(--paper-soft);margin-top:calc(var(--pw)*.02);">Writing modular, type-safe, maintainable code with strict zero-compiler-warning standards.</p></div><span class="folio">04</span></div></div>`,
+
+        /* 10: Chapter Three: Experience (Zetexa & 98thPercentile) */
+        `<div class="pg paper right"><div class="in"><span class="rh">Chapter Three &middot; Experience</span><div class="body" style="top:calc(var(--pw)*.14);"><div style="border-bottom:1px solid rgba(31,27,22,.15);padding-bottom:calc(var(--pw)*.025);margin-bottom:calc(var(--pw)*.025);"><div style="display:flex;justify-content:space-between;align-items:baseline;"><h4 style="margin:0;font:italic 400 calc(var(--pw)*.048)/1 var(--display);">MTS-1</h4><span style="font:400 calc(var(--pw)*.02)/1 var(--mono);color:var(--paper-soft);">Present</span></div><div style="font:600 calc(var(--pw)*.022)/1 var(--mono);color:var(--paper-ink);margin-top:calc(var(--pw)*.01);">Zetexa Global &middot; Hyderabad</div><ul style="margin:calc(var(--pw)*.015) 0 0;padding-left:calc(var(--pw)*.035);font:400 calc(var(--pw)*.024)/1.35 var(--book);color:var(--paper-soft);"><li>Architecting Next.js 15 App Router platform.</li><li>Reduced First Contentful Paint by 40%.</li><li>Engineered reusable Tailwind design system.</li></ul></div><div><div style="display:flex;justify-content:space-between;align-items:baseline;"><h4 style="margin:0;font:italic 400 calc(var(--pw)*.048)/1 var(--display);">Frontend Developer</h4><span style="font:400 calc(var(--pw)*.02)/1 var(--mono);color:var(--paper-soft);">2023 — 2024</span></div><div style="font:600 calc(var(--pw)*.022)/1 var(--mono);color:var(--paper-ink);margin-top:calc(var(--pw)*.01);">98thPercentile &middot; Hyderabad</div><ul style="margin:calc(var(--pw)*.015) 0 0;padding-left:calc(var(--pw)*.035);font:400 calc(var(--pw)*.024)/1.35 var(--book);color:var(--paper-soft);"><li>Engineered student &amp; instructor dashboards.</li><li>Real-time quiz flows with Redux Toolkit.</li></ul></div></div><span class="folio">05</span></div></div>`,
+
+        /* 11: Chapter Three: Experience (BrainCells & Education) */
+        `<div class="pg paper left"><div class="in"><span class="rh">Early Career &middot; Education</span><div class="body" style="top:calc(var(--pw)*.14);"><div style="border-bottom:1px solid rgba(31,27,22,.15);padding-bottom:calc(var(--pw)*.025);margin-bottom:calc(var(--pw)*.025);"><div style="display:flex;justify-content:space-between;align-items:baseline;"><h4 style="margin:0;font:italic 400 calc(var(--pw)*.048)/1 var(--display);">Frontend Intern</h4><span style="font:400 calc(var(--pw)*.02)/1 var(--mono);color:var(--paper-soft);">2022 — 2023</span></div><div style="font:600 calc(var(--pw)*.022)/1 var(--mono);color:var(--paper-ink);margin-top:calc(var(--pw)*.01);">BrainCells &middot; Remote</div><p style="margin:calc(var(--pw)*.015) 0 0;font:400 calc(var(--pw)*.024)/1.4 var(--book);color:var(--paper-soft);">Built responsive client modules with React and TypeScript, delivering pixel precision from Figma designs.</p></div><div><div style="font:600 calc(var(--pw)*.02)/1 var(--mono);text-transform:uppercase;letter-spacing:.15em;color:var(--paper-soft);margin-bottom:calc(var(--pw)*.015);">Education &amp; Background</div><h4 style="margin:0;font:italic 400 calc(var(--pw)*.048)/1 var(--display);">Bachelor of Technology</h4><div style="font:400 calc(var(--pw)*.024)/1.4 var(--book);color:var(--paper-soft);margin-top:calc(var(--pw)*.01);">Computer Science Engineering &middot; Strong foundations in Data Structures, OS, and Software Architecture.</div></div></div><span class="folio">06</span></div></div>`,
+
+        /* 12: Chapter Four: Projects (DressUp & Aura) */
+        `<div class="pg paper right"><div class="in"><span class="rh">Chapter Four &middot; Selected Works</span><div class="body" style="top:calc(var(--pw)*.14);"><div style="border-bottom:1px solid rgba(31,27,22,.15);padding-bottom:calc(var(--pw)*.02);margin-bottom:calc(var(--pw)*.02);"><h4 style="margin:0;font:italic 400 calc(var(--pw)*.046)/1.1 var(--display);">DressUp Fashion E-Commerce</h4><p style="margin:calc(var(--pw)*.01) 0;font:400 calc(var(--pw)*.023)/1.35 var(--book);color:var(--paper-soft);">Full-featured online fashion platform with multi-factor filters, wishlist, and responsive checkout.</p><div style="font:500 calc(var(--pw)*.019)/1 var(--mono);color:var(--paper-ink);margin-bottom:calc(var(--pw)*.015);">React.js &middot; Tailwind &middot; Context API</div><div><a href="https://dressup-shop.netlify.app/" target="_blank" class="port-link-btn">Launch Live App &rarr;</a></div></div><div><h4 style="margin:0;font:italic 400 calc(var(--pw)*.046)/1.1 var(--display);">Aura Web Experience</h4><p style="margin:calc(var(--pw)*.01) 0;font:400 calc(var(--pw)*.023)/1.35 var(--book);color:var(--paper-soft);">Interactive 3D digital product showcase with Three.js shaders and fluid camera physics.</p><div style="font:500 calc(var(--pw)*.019)/1 var(--mono);color:var(--paper-ink);margin-bottom:calc(var(--pw)*.015);">Next.js 15 &middot; Three.js &middot; TypeScript</div><div><a href="https://aura-delta-hazel.vercel.app/" target="_blank" class="port-link-btn">Launch Live App &rarr;</a></div></div></div><span class="folio">07</span></div></div>`,
+
+        /* 13: Chapter Four: Projects (Media Recorder & Mental-UP) */
+        `<div class="pg paper left"><div class="in"><span class="rh">Selected Works &middot; Utilities</span><div class="body" style="top:calc(var(--pw)*.14);"><div style="border-bottom:1px solid rgba(31,27,22,.15);padding-bottom:calc(var(--pw)*.02);margin-bottom:calc(var(--pw)*.02);"><h4 style="margin:0;font:italic 400 calc(var(--pw)*.046)/1.1 var(--display);">Media Recorder Suite</h4><p style="margin:calc(var(--pw)*.01) 0;font:400 calc(var(--pw)*.023)/1.35 var(--book);color:var(--paper-soft);">Browser tool for screen recording, webcam capture, and audio stream export with zero latency.</p><div style="font:500 calc(var(--pw)*.019)/1 var(--mono);color:var(--paper-ink);margin-bottom:calc(var(--pw)*.015);">React.js &middot; MediaRecorder API &middot; Tailwind</div><div><a href="https://media-recorder11.netlify.app/" target="_blank" class="port-link-btn">Launch Live App &rarr;</a></div></div><div><h4 style="margin:0;font:italic 400 calc(var(--pw)*.046)/1.1 var(--display);">Mental-UP &amp; Flow Builder</h4><p style="margin:calc(var(--pw)*.01) 0;font:400 calc(var(--pw)*.023)/1.35 var(--book);color:var(--paper-soft);">Interactive cognitive quiz app, alongside a visual canvas node graph chatbot tree builder.</p><div style="margin-top:calc(var(--pw)*.015);"><a href="https://activity-app1.netlify.app/" target="_blank" class="port-link-btn">Launch Live App &rarr;</a></div></div></div><span class="folio">08</span></div></div>`,
+
+        /* 14: Chapter Five: Articles */
+        `<div class="pg paper right"><div class="in"><span class="rh">Chapter Five &middot; Articles</span><div class="body" style="top:calc(var(--pw)*.14);"><span class="label" style="display:block;margin-bottom:calc(var(--pw)*.02);">Hashnode Publications</span><div style="display:flex;flex-direction:column;gap:calc(var(--pw)*.025);"><div><h4 style="margin:0;font:italic 400 calc(var(--pw)*.042)/1.1 var(--display);"><a href="https://abhishek72340.hashnode.dev/promises-and-its-types" target="_blank" style="text-decoration:underline;">Promises: Asynchronous JS &rarr;</a></h4><span style="font:400 calc(var(--pw)*.02)/1 var(--mono);color:var(--paper-soft);">Microtask queue, event loop &amp; Promise.all</span></div><div><h4 style="margin:0;font:italic 400 calc(var(--pw)*.042)/1.1 var(--display);"><a href="https://abhishek72340.hashnode.dev/nullish-coalescing-optional-chaining" target="_blank" style="text-decoration:underline;">Nullish Coalescing &amp; Chaining &rarr;</a></h4><span style="font:400 calc(var(--pw)*.02)/1 var(--mono);color:var(--paper-soft);">ES2020 syntax &amp; runtime safety</span></div><div><h4 style="margin:0;font:italic 400 calc(var(--pw)*.042)/1.1 var(--display);"><a href="https://abhishek72340.hashnode.dev/difference-between-in-javascript" target="_blank" style="text-decoration:underline;">Loose vs Strict Equality &rarr;</a></h4><span style="font:400 calc(var(--pw)*.02)/1 var(--mono);color:var(--paper-soft);">Type coercion &amp; V8 engine comparisons</span></div><div><h4 style="margin:0;font:italic 400 calc(var(--pw)*.042)/1.1 var(--display);"><a href="https://abhishek72340.hashnode.dev/blockchain-technology" target="_blank" style="text-decoration:underline;">Blockchain &amp; Web3 Tech &rarr;</a></h4><span style="font:400 calc(var(--pw)*.02)/1 var(--mono);color:var(--paper-soft);">Distributed ledgers &amp; consensus</span></div></div></div><span class="folio">09</span></div></div>`,
+
+        /* 15: Chapter Six: Contact */
+        `<div class="pg paper left"><div class="in"><div class="eop" style="top:50%;left:12%;right:12%;"><span class="orn">&middot;&middot;&middot;</span><span class="label">Let&rsquo;s Build Together</span><h4>Abhishek Singh Rana</h4><p style="margin:0;font:400 calc(var(--pw)*.025)/1.4 var(--book);color:var(--paper-soft);">Open for high-impact software engineering roles, full-stack systems, and creative web experiences.</p><div style="display:flex;flex-direction:column;gap:calc(var(--pw)*.015);margin-top:calc(var(--pw)*.02);font:500 calc(var(--pw)*.022)/1.2 var(--mono);"><a href="mailto:abhisingh.72340@gmail.com" target="_blank" style="color:var(--paper-ink);text-decoration:underline;">abhisingh.72340@gmail.com</a><span style="color:var(--paper-soft);">Hyderabad, Telangana, India</span></div><div style="display:flex;gap:calc(var(--pw)*.02);margin-top:calc(var(--pw)*.03);"><a class="buy" href="/contact" target="_top">Contact Page &rarr;</a><a class="buy" href="https://github.com/abhishek72340" target="_blank" style="background:transparent;border:1px solid var(--paper-ink);color:var(--paper-ink);">GitHub &rarr;</a></div></div><span class="folio">10</span></div></div>`,
+
+        /* 16: Right Endpaper (Hard) */
+        `<div class="pg pg-end right" data-density="hard"><div class="in" style="--end:${end}"></div></div>`,
+
+        /* 17: Back Cover (Hard) */
+        `<div class="pg pg-back" data-density="hard"><div class="in" style="--bk:${cv.s};--bk-ink:${dark ? '#1a1712' : '#f1ece2'}"><p class="bk-q">&ldquo;Simplicity is prerequisite for reliability. Building modern web experiences with precision &amp; craft.&rdquo;</p><p class="bk-a">Abhishek Singh Rana &middot; Software Engineer<br>3+ Years of Experience &middot; Hyderabad, India</p><div class="bk-foot"><span class="lbl">Portfolio Edition<br>Next.js 15 &middot; React &middot; WebGL</span><span class="bar"><i style="background:${barcode(b.i + 1)}"></i><small>PORTFOLIO-2026</small></span></div></div></div>`
+      ];
+    }
+
+    /* lay the chapter text out across the three text pages by measuring, like a typesetter */
+    function paginate(b, L, flowPages) {
+      if (!flowPages || flowPages.length === 0) return;
+      const start = b.i % POOL.length;
+      const title = b.cv ? b.cv.t : "";
+      const openingText = (title && OPENING[title]) || (BOOK_DETAILS[b.i] && BOOK_DETAILS[b.i].desc) || "Building modern web experiences with precision and craft.";
+      const paras = [openingText];
+      for (let j = 0; j < 9; j++) paras.push(POOL[(start + j) % POOL.length]);
+      const toks = [];
+      paras.forEach((p, pi) => {
+        if (typeof p === 'string') {
+          p.split(/\s+/).forEach((w, wi) => toks.push({ w: esc(w), pi, start: wi === 0 }));
+        }
+      });
+      const render = (a, z, first) => {
+        let html = '', cur = -1, words = [], cls = '';
+        const flush = () => { if (words.length) html += `<p${cls ? ` class="${cls}"` : ''}>${words.join(' ')}</p>`; words = []; };
+        for (let i = a; i < z; i++) {
+          const t = toks[i];
+          if (t.pi !== cur) { flush(); cur = t.pi; cls = (i === a && !t.start) ? 'cont' : (first && t.pi === 0 ? 'first' : ''); }
+          words.push(t.w);
+        }
+        flush(); return html;
+      };
+      meas.style.setProperty('--pw', L.pw + 'px');
+      let pos = 0;
+      for (const el of flowPages) {
+        const pg = el.closest('.pg').cloneNode(true);
+        pg.style.width = L.pw + 'px'; pg.style.height = L.ph + 'px';
+        meas.replaceChildren(pg);
+        const body = pg.querySelector('.body'), first = pos === 0;
+        const fits = n => { body.innerHTML = render(pos, pos + n, first); return body.scrollHeight <= body.clientHeight + 1; };
+        let lo = 0, hi = toks.length - pos;
+        while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (fits(mid)) lo = mid; else hi = mid - 1; }
+        el.innerHTML = render(pos, pos + lo, first);
+        pos += lo;
+      }
+      meas.replaceChildren();
+    }
+
+    function spreadOf(page) { return !pf || pf.getOrientation() === 'portrait' ? page : (page === 0 ? 0 : Math.floor((page + 1) / 2)); }
+    function placeShift(s, L) {
+      const x = !L.land ? 0 : s === 0 ? -L.pw / 2 : s === lastSpread ? L.pw / 2 : 0;
+      shift.style.transform = `translateX(${x}px)`;
+    }
+    function updateCount() {
+      const total = pf.getPageCount(), port = pf.getOrientation() === 'portrait';
+      lastSpread = port ? total - 1 : Math.ceil((total - 1) / 2);
+      const s = spread;
+      $('r-count').textContent = s === 0 ? 'Front cover' : s === lastSpread ? 'Back cover'
+        : port ? `Page ${pad3(s + 1).slice(1)} / ${total}` : `Spread ${String(s).padStart(2, '0')} / ${String(lastSpread - 1).padStart(2, '0')}`;
+      $('r-prev').disabled = s === 0; $('r-next').disabled = s === lastSpread;
+    }
+
+    let curL = null;
+    async function buildBook(b, startPage = 0) {
+      const L = readerLayout(); curL = L;
+      await document.fonts.ready;
+      if (pf) { pf.destroy(); pf = null; }
+      shift.replaceChildren();
+      shift.style.setProperty('--pw', L.pw + 'px');
+      shift.style.width = (L.land ? 2 * L.pw : L.pw) + 'px';
+      shift.style.height = L.ph + 'px';
+      const host = document.createElement('div'); host.className = 'r-book';
+      shift.appendChild(host);
+      const tmp = document.createElement('div');
+      tmp.innerHTML = pagesHTML(b, L).join('');
+      const pages = [...tmp.children];
+      pages.forEach(p => p.setAttribute('lang', 'en'));
+      paginate(b, L, pages.map(p => p.querySelector('[data-flow]')).filter(Boolean));
+      pf = new PageFlip(host, {
+        width: L.pw, height: L.ph, size: 'fixed', showCover: true, usePortrait: true, autoSize: true,
+        minWidth: 0, maxWidth: 0, minHeight: 0, maxHeight: 0, startPage, drawShadow: true, maxShadowOpacity: .45,
+        flippingTime: reduce ? 300 : 900, mobileScrollSupport: true, swipeDistance: 24, showPageCorners: true,
+        clickEventForward: true, useMouseEvents: true, disableFlipByClick: false, startZIndex: 0
+      });
+      pf.loadFromHTML(pages);
+      spread = spreadOf(startPage);
+      pf.on('flip', e => {
+        spread = spreadOf(e.data);
+        placeShift(spread, curL);
+        updateCount();
+        try {
+          window.parent.postMessage({ type: 'PAGE_FLIPPED', page: e.data, spread, countText: $('r-count').textContent }, '*');
+        } catch (err) { }
+      });
+      pf.on('changeState', e => { if (e.data === 'read' && state === 'turning') state = 'open'; else if (e.data !== 'read' && state === 'open') state = 'turning'; });
+      updateCount();
+      shift.style.transition = 'none'; placeShift(spread, L); void shift.offsetWidth; shift.style.transition = '';
+      return L;
+    }
+    async function rebuildOpenBook() {
+      const page = pf ? pf.getCurrentPageIndex() : 0;
+      const L = await buildBook(hero, page);
+      const pose = readingPose(L);
+      hero.mesh.position.copy(pose.pos); hero.mesh.quaternion.copy(pose.quat);
+    }
+
+    function go(dir) {
+      if (!pf || (state !== 'open' && state !== 'turning')) return;
+      const next = clamp(spread + dir, 0, lastSpread);
+      if (next === spread) return;
+      placeShift(next, curL);
+      dir > 0 ? pf.flipNext('bottom') : pf.flipPrev('bottom');
+    }
+    $('r-next').addEventListener('click', () => go(1));
+    $('r-prev').addEventListener('click', () => go(-1));
+    $('r-close').addEventListener('click', () => closeBook());
+    reader.addEventListener('click', e => { if (e.target === reader || e.target === stage) closeBook(); });
+    document.querySelector('.pill')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (state === 'shelf') {
+        const target = shown >= 0 ? books[shown] : books[0];
+        openBook(target);
+      }
+    });
+
+    async function openBook(b) {
+      if (!b) b = books[0];
+      if (state === 'open') {
+        // If already open, turn to next page
+        if (spread === 0) {
+          placeShift(1, curL);
+          pf?.flipNext('bottom');
+        } else {
+          pf?.flipNext('bottom');
+        }
+        return;
+      }
+      if (state === 'opening') return;
+
+      try {
+        state = 'opening';
+        hero = b;
+        svel = 0;
+        coasting = false;
+        document.body.classList.add('reading');
+        tag.classList.remove('on');
+        $('r-no').textContent = 'RAN–' + pad3(b.i + 1);
+        $('r-title').textContent = b.cv.t;
+        $('r-author').textContent = b.cv.a;
+        reader.classList.add('on');
+        reader.setAttribute('aria-hidden', 'false');
+
+        scene.attach(b.mesh);
+        const L = await buildBook(b, 0);
+        const pose = readingPose(L);
+        heroTween = {
+          p0: b.mesh.position.clone(),
+          q0: b.mesh.quaternion.clone(),
+          p1: pose.pos,
+          q1: pose.quat,
+          t0: performance.now(),
+          dur: reduce ? 1 : 1100,
+          arc: .55,
+          done: () => {
+            reader.classList.add('book-on', 'chrome');
+            b.mesh.visible = false;
+            state = 'open';
+            $('r-close')?.focus({ preventScroll: true });
+            try {
+              window.parent.postMessage({
+                type: 'BOOK_OPENED',
+                bookIndex: b.i,
+                title: b.cv.t,
+                author: b.cv.a,
+                code: 'RAN–' + pad3(b.i + 1)
+              }, '*');
+            } catch (err) { }
+            setTimeout(() => {
+              if (state === 'open' && spread === 0) {
+                placeShift(1, curL);
+                pf?.flipNext('bottom');
+              }
+            }, reduce ? 0 : 250);
+          }
+        };
+      } catch (err) {
+        console.error('Failed to open book:', err);
+        state = 'shelf';
+        document.body.classList.remove('reading');
+        reader.classList.remove('on', 'book-on', 'chrome');
+        if (hero) {
+          hero.group.attach(hero.mesh);
+          hero.mesh.position.set(0, 0, 0);
+          hero.mesh.quaternion.identity();
+          hero = null;
+        }
+      }
+    }
+
+    function closeBook() {
+      if (state !== 'open' && state !== 'turning') return;
+      state = 'closing';
+      reader.classList.remove('chrome');
+      const finish = () => {
+        clearTimeout(fallback);
+        reader.classList.remove('book-on');
+        hero.mesh.visible = true;
+        const pose = readingPose(curL);
+        hero.mesh.position.copy(pose.pos); hero.mesh.quaternion.copy(pose.quat);
+        document.body.classList.remove('reading');
+        hero.group.updateMatrixWorld();
+        const p1 = new THREE.Vector3(), q1 = new THREE.Quaternion();
+        hero.group.getWorldPosition(p1); hero.group.getWorldQuaternion(q1);
+        heroTween = {
+          p0: hero.mesh.position.clone(), q0: hero.mesh.quaternion.clone(), p1, q1, t0: performance.now(), dur: reduce ? 1 : 1000, arc: .35, done: () => {
+            const b = hero;
+            b.group.attach(b.mesh);
+            b.mesh.position.set(0, 0, 0); b.mesh.quaternion.identity();
+            Object.assign(b, { y: 0, vy: 0, z: 0, vz: 0, lean: 0, vlean: 0 });
+            reader.classList.remove('on'); reader.setAttribute('aria-hidden', 'true');
+            if (pf) { pf.destroy(); pf = null; }
+            shift.replaceChildren();
+            hero = null; state = 'shelf'; P.last = performance.now();
+            canvas.focus({ preventScroll: true });
+            try {
+              window.parent.postMessage({ type: 'BOOK_CLOSED' }, '*');
+            } catch (err) { }
+          }
+        };
+      };
+      let fallback = 0;
+      if (spread === 0) return finish();
+      // turn back to the front cover first, so the book closes the way it opened
+      placeShift(0, curL);
+      const onFlip = e => { if (e.data === 0) { pf.off('flip'); setTimeout(finish, 120); } };
+      pf.on('flip', onFlip);
+      pf.flip(0, 'bottom');
+      fallback = setTimeout(() => { if (state === 'closing' && reader.classList.contains('book-on')) { pf.turnToPage(0); finish(); } }, 2200);
+    }
+
+    /* ---------- auto-open on load without clicking anything & parent postMessage API ---------- */
+    const urlParams = new URLSearchParams(location.search);
+    const shouldAutoOpen = urlParams.get('autoOpen') !== 'false';
+    const initialBookIdx = parseInt(urlParams.get('book') || '0', 10);
+
+    if (shouldAutoOpen) {
+      setTimeout(() => {
+        if (state === 'shelf') {
+          const b = books.find(item => item.i === initialBookIdx) || books[0];
+          openBook(b);
+        }
+      }, 2600);
+    }
+
+    window.addEventListener('message', e => {
+      if (!e.data || typeof e.data !== 'object') return;
+      if (e.data.type === 'OPEN_BOOK') {
+        const idx = typeof e.data.index === 'number' ? e.data.index : (shown >= 0 ? shown : 0);
+        const b = books.find(item => item.i === idx) || books[0];
+        if (state === 'shelf') {
+          openBook(b);
+        } else if (state === 'open' || state === 'turning') {
+          if (hero && hero.i !== b.i) {
+            closeBook();
+            setTimeout(() => openBook(b), 1100);
+          } else {
+            if (spread === 0) {
+              placeShift(1, curL);
+              pf?.flipNext('bottom');
+            } else {
+              pf?.flipNext('bottom');
+            }
+          }
+        }
+      } else if (e.data.type === 'CLOSE_BOOK') {
+        if (state === 'open' || state === 'turning') closeBook();
+      } else if (e.data.type === 'NEXT_PAGE') {
+        go(1);
+      } else if (e.data.type === 'PREV_PAGE') {
+        go(-1);
+      }
+    });
+
+    addEventListener('keydown', e => {
+      if (state === 'open' || state === 'turning') {
+        if (e.key === 'Escape') { e.preventDefault(); closeBook(); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); go(1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
+      } else if (state === 'shelf' && (document.activeElement === canvas || document.activeElement === document.body)) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); svel = clamp(svel + 7, -30, 30); coasting = true; P.last = performance.now(); }
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); svel = clamp(svel - 7, -30, 30); coasting = true; P.last = performance.now(); }
+        else if ((e.key === 'Enter' || e.key === ' ') && shown >= 0) { e.preventDefault(); openBook(books[shown]); }
+      }
+    });
+
+    addEventListener('resize', resize); resize();
+
+    /* ---------- loop ---------- */
+    const K = 70, C = 12.5;
+    const t0 = performance.now(); let prev = t0;
+    const easeIO = u => u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+    function frame(now) {
+      const dt = Math.min((now - prev) / 1000, .05); prev = now;
+      const t = (now - t0) / 1000, ts = now / 1000;
+
+      /* carousel physics: glide, then settle on a whole slot */
+      if (state === 'shelf' && !dragging) {
+        if (coasting && Math.abs(svel) > 1.1) { scroll += svel * dt; svel *= Math.exp(-dt * 2.4); }
+        else {
+          coasting = false;
+          const target = Math.round(scroll), h = dt / 4;
+          for (let k = 0; k < 4; k++) { svel += ((target - scroll) * 55 - svel * 13) * h; scroll += svel * h; }
+        }
+      }
+      if (dragging || coasting) P.last = Math.max(P.last, now - 3000);
+
+      for (const b of books) {
+        b.k = wrapK(b.i - scroll);
+        slotPos(b.k, b.group.position);
+        const front = clamp((-.6 - b.k) / 1.4, 0, 1), back = clamp((b.k - 28.4) / 1.6, 0, 1);
+        b.group.position.y -= 3.2 * smooth(Math.max(front, back));
+        if (b !== hero) { v.set(0, .1, 0); b.group.localToWorld(v);[b.sx, b.sy] = toScreen(v); }
+      }
+
+      let cx = P.x, cy = P.y, active = P.inside && state === 'shelf';
+      if (state === 'shelf' && !reduce && !dragging && now - P.last > 4000) {
+        const a = books.find(b => Math.round(b.k) === 22) || books[0], z = books.find(b => Math.round(b.k) === 1) || books[1];
+        const u = (Math.sin(t * .45) + 1) / 2;
+        cx = a.sx + (z.sx - a.sx) * u; cy = a.sy + (z.sy - a.sy) * u; active = true;
+      }
+
+      const s = Math.max(innerWidth, innerHeight) * .085, s2 = s * s, h = dt / 4;
+      const leanT = clamp(svel * .012, -.16, .16);
+      let best = -1, bestInf = .22;
+      for (const b of books) {
+        if (b === hero) continue;
+        let inf = 0;
+        if (active) { const dx = b.sx - cx, dy = (b.sy - cy) * .55; inf = Math.exp(-(dx * dx + dy * dy) / s2); }
+        if (inf > bestInf && b.k > -.6 && b.k < 28) { bestInf = inf; best = b.i; }
+        let ty, tz = 0;
+        const started = reduce || t > .25 + (N - b.i) * .035;
+        if (state === 'shelf') {
+          ty = started ? 1.4 * inf : -3; tz = started ? 0.95 * inf : 0;
+        } else {
+          // Books stay standing proudly on the shelf in their 3D line!
+          ty = started ? 0 : -3; tz = 0;
+        }
+        for (let k = 0; k < 4; k++) {
+          b.vy += ((ty - b.y) * K - b.vy * C) * h; b.y += b.vy * h;
+          b.vz += ((tz - b.z) * K - b.vz * C) * h; b.z += b.vz * h;
+          b.vlean += ((leanT - b.lean) * 60 - b.vlean * 8.5) * h; b.lean += b.vlean * h;
+        }
+        b.mesh.position.y = b.y; b.mesh.position.z = b.z;
+        b.mesh.rotation.x = -b.vy * .012;
+        b.mesh.rotation.z = b.lean;
+        // Tactile peek open rotation on hover: book tilts open towards viewer!
+        if (state === 'shelf' && started) {
+          const isBest = b.i === best;
+          const targetRotY = isBest ? 0.38 : (0.24 * inf);
+          b.mesh.rotation.y = targetRotY;
+        } else {
+          b.mesh.rotation.y = 0;
+        }
+      }
+
+      /* hero flight between the shelf and the reading pose */
+      if (heroTween) {
+        const T = heroTween, u = clamp((now - T.t0) / T.dur, 0, 1), e = easeIO(u);
+        hero.mesh.position.lerpVectors(T.p0, T.p1, e);
+        hero.mesh.position.y += Math.sin(Math.PI * e) * T.arc;
+        hero.mesh.quaternion.slerpQuaternions(T.q0, T.q1, e);
+        if (u >= 1) { const d = T.done; heroTween = null; d(); }
+      }
+
+      if (state === 'shelf' && best >= 0 && !dragging) {
+        show(best);
+        const b = books[best];
+        v.set(0, 1.25, 0); b.mesh.localToWorld(v); v.project(camera);
+        const w = tag.firstElementChild ? tag.firstElementChild.offsetWidth / 2 + 16 : 230;
+        const tx = clamp((v.x + 1) * .5 * innerWidth, w, innerWidth - w);
+        const ty = clamp((1 - v.y) * .5 * innerHeight, 150, innerHeight - 50);
+        const k = tag.classList.contains('on') ? Math.min(1, dt * 16) : 1;
+        tagX += (tx - tagX) * k; tagY += (ty - tagY) * k;
+        tag.style.transform = `translate3d(${tagX.toFixed(1)}px,${tagY.toFixed(1)}px,0)`;
+        tag.classList.add('on');
+      } else tag.classList.remove('on');
+
+      canvas.classList.toggle('over', state === 'shelf' && !dragging && P.inside && !coarse && best >= 0 && !!pick(P.x, P.y));
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  </script>
+</body>
+
+</html>

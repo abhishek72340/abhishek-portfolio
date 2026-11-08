@@ -12,6 +12,18 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  async rewrites() {
+    return [
+      {
+        source: "/demos/margin-press",
+        destination: "/demos/margin-press/index.html",
+      },
+      {
+        source: "/demos/margin-press/",
+        destination: "/demos/margin-press/index.html",
+      },
+    ];
+  },
 };
 
 export default nextConfig;
